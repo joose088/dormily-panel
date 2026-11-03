@@ -1,9 +1,14 @@
-// Inicio de sesión con Google y acceso a los datos (Firebase). La configuración va en config.js.
+// Entrada con nombre + código del equipo y acceso a los datos (Firebase). La configuración va en config.js.
+// El código es la contraseña de una única cuenta de Firebase (CUENTA_EQUIPO); nunca se guarda en el código fuente.
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, getDoc, writeBatch } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-import { FIREBASE, EQUIPO } from './config.js';
+import { FIREBASE, CUENTA_EQUIPO, NOMBRES } from './config.js';
 import { SEMILLA } from './semilla.js';
+
+const CLAVE_QUIEN = 'dormily-panel-quien';
+const leerQuien = () => { try { return localStorage.getItem(CLAVE_QUIEN); } catch (e) { return null; } };
+const guardarQuien = (q) => { try { if (q) localStorage.setItem(CLAVE_QUIEN, q); else localStorage.removeItem(CLAVE_QUIEN); } catch (e) {} };
 
 // Same small surface the panel already uses: collection(x).add / doc(id).set|update|delete / onSnapshot.
 function adaptador(fs) {
@@ -24,7 +29,7 @@ function adaptador(fs) {
   };
 }
 
-// Loads the starting tasks, events and notes once, the first time someone from the team signs in.
+// Loads the starting tasks, events and notes once, the first time someone from the team gets in.
 async function sembrar(fs) {
   const marca = doc(fs, 'config', 'inicio');
   if ((await getDoc(marca)).exists()) return;
@@ -36,31 +41,72 @@ async function sembrar(fs) {
   await lote.commit();
 }
 
+const MENSAJES = {
+  'auth/invalid-credential': 'Código incorrecto.',
+  'auth/invalid-login-credentials': 'Código incorrecto.',
+  'auth/wrong-password': 'Código incorrecto.',
+  'auth/user-not-found': 'Falta crear la cuenta del equipo en Firebase (ver README).',
+  'auth/too-many-requests': 'Demasiados intentos. Espera unos minutos y vuelve a probar.',
+  'auth/operation-not-allowed': 'Falta activar «Correo electrónico/contraseña» en Firebase (ver README).',
+  'auth/network-request-failed': 'Sin conexión. Revisa internet y vuelve a probar.'
+};
+
 export function iniciar({ alEntrar, alSalir, alError }) {
+  const $ = (id) => document.getElementById(id);
   if (!FIREBASE.apiKey) { alError('Falta la configuración de Firebase en config.js.'); return; }
   const app = initializeApp(FIREBASE);
   const auth = getAuth(app);
   const fs = getFirestore(app);
-  const proveedor = new GoogleAuthProvider();
-  proveedor.setCustomParameters({ prompt: 'select_account' });
+  let quien = NOMBRES[leerQuien()] ? leerQuien() : null;
+  let cuenta = null;
+  let dentro = false;
 
-  document.getElementById('entrar-google').addEventListener('click', async () => {
+  function verNombres() {
+    $('entrada-pregunta').textContent = '¿Quién eres?';
+    $('nombres').hidden = false; $('form-codigo').hidden = true;
+  }
+  function verCodigo() {
+    $('entrada-pregunta').textContent = 'Hola, ' + NOMBRES[quien];
+    $('nombres').hidden = true; $('form-codigo').hidden = false;
+    $('codigo').value = ''; $('codigo').focus();
+  }
+  async function entrar() {
+    if (dentro) return;
+    dentro = true;
+    try { await sembrar(fs); } catch (e) { /* Offline or no access: the listeners report it. */ }
+    alEntrar({ nombre: NOMBRES[quien], persona: quien }, adaptador(fs));
+  }
+
+  $('nombres').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-quien]');
+    if (!b) return;
+    quien = b.dataset.quien; guardarQuien(quien);
+    $('entrada-error').hidden = true;
+    if (cuenta) entrar(); else verCodigo();
+  });
+  $('otro-nombre').addEventListener('click', () => { quien = null; guardarQuien(null); $('entrada-error').hidden = true; verNombres(); });
+  $('form-codigo').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const codigo = $('codigo').value.trim();
+    if (!codigo) { $('codigo').focus(); return; }
+    const boton = $('boton-entrar');
+    boton.disabled = true; boton.textContent = 'Entrando…';
+    $('entrada-error').hidden = true;
     try {
-      await signInWithPopup(auth, proveedor);
-    } catch (e) {
-      if (e.code === 'auth/popup-blocked' || e.code === 'auth/operation-not-supported-in-this-environment') return signInWithRedirect(auth, proveedor);
-      if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') return;
-      if (e.code === 'auth/unauthorized-domain') return alError('Esta dirección no está autorizada en Firebase. Añádela en Authentication → Configuración → Dominios autorizados.');
-      alError('No se ha podido entrar con Google. Inténtalo de nuevo.');
+      await signInWithEmailAndPassword(auth, CUENTA_EQUIPO, codigo);
+    } catch (err) {
+      alError(MENSAJES[err.code] || 'No se ha podido entrar. Inténtalo de nuevo.');
+      $('codigo').select();
+    } finally {
+      boton.disabled = false; boton.textContent = 'Entrar';
     }
   });
-  document.getElementById('salir').addEventListener('click', async () => { await signOut(auth); location.reload(); });
-  getRedirectResult(auth).catch(() => {});
+  $('salir').addEventListener('click', async () => { guardarQuien(null); await signOut(auth); location.reload(); });
 
-  onAuthStateChanged(auth, async (u) => {
-    if (!u) { alSalir(); return; }
-    const email = (u.email || '').toLowerCase();
-    try { await sembrar(fs); } catch (e) { /* Not on the team, or offline: the listeners report it. */ }
-    alEntrar({ email, nombre: u.displayName || email, persona: EQUIPO[email] || null }, adaptador(fs));
+  onAuthStateChanged(auth, (u) => {
+    cuenta = u;
+    if (u && quien) { entrar(); return; }
+    alSalir();
+    if (quien && !u) verCodigo(); else verNombres();
   });
 }

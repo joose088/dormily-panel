@@ -1,19 +1,21 @@
-// 1) Pega aquí la configuración web de tu proyecto de Firebase:
-//    Firebase → Configuración del proyecto → General → Tus apps → App web → «Configuración».
-//    Estos datos no son secretos: lo que protege el panel son las reglas de firestore.rules.
+// Configuración web del proyecto de Firebase «dormily-panel».
+// Estos datos no son secretos: lo que protege el panel son el código del equipo y las reglas de firestore.rules.
 export const FIREBASE = {
-  apiKey: '',
-  authDomain: '',
-  projectId: '',
-  storageBucket: '',
-  messagingSenderId: '',
-  appId: ''
+  apiKey: 'AIzaSyBOE6S93gd_cwpxxFy1bSrW0f9VKOIhu-8',
+  authDomain: 'dormily-panel.firebaseapp.com',
+  projectId: 'dormily-panel',
+  storageBucket: 'dormily-panel.firebasestorage.app',
+  messagingSenderId: '587371123882',
+  appId: '1:587371123882:web:28a344fb38caff177c6cd3'
 };
 
-// 2) Cuentas de Google del equipo (en minúsculas) y a quién corresponde cada una en el panel.
-//    Tienen que ser las mismas que pongas en firestore.rules.
-export const EQUIPO = {
-  'correo-de-jose-carlos@gmail.com': 'jc',
-  'correo-de-alejandro@gmail.com': 'alejandro',
-  'correo-de-hugo@gmail.com': 'hugo'
+// Cuenta única del equipo en Firebase (Authentication → Usuarios). Su contraseña es el código del equipo.
+// Tiene que coincidir con el correo de firestore.rules.
+export const CUENTA_EQUIPO = 'panel@dormily.es';
+
+// Quién puede elegirse en la pantalla de entrada (clave = persona del panel).
+export const NOMBRES = {
+  jc: 'José Carlos',
+  alejandro: 'Alejandro',
+  hugo: 'Hugo'
 };
