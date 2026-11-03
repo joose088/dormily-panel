@@ -39,22 +39,23 @@ function adaptador(fs) {
   };
 }
 
-// Loads each starting collection once. config/inicio remembers which ones are already in.
+// Loads each starting batch once, in order. config/inicio remembers which ones are already in.
+// A key like «proveedores@2» is a later batch for that collection and is merged into existing documents.
 async function sembrar(fs) {
   const marca = doc(fs, 'config', 'inicio');
   const snap = await getDoc(marca);
   const hecho = snap.exists() ? Object.assign({}, snap.data()) : {};
   if (hecho.sembrado) { hecho.tareas = true; hecho.eventos = true; hecho.notas = true; }
-  const faltan = Object.keys(SEMILLA).filter((col) => !hecho[col]);
-  if (!faltan.length) return;
-  const lote = writeBatch(fs);
-  const marcas = {};
-  for (const col of faltan) {
-    for (const [id, datos] of Object.entries(SEMILLA[col])) lote.set(doc(fs, col, id), datos);
-    marcas[col] = true;
+  for (const clave of Object.keys(SEMILLA)) {
+    if (hecho[clave]) continue;
+    const [col, tanda] = clave.split('@');
+    const lote = writeBatch(fs);
+    for (const [id, datos] of Object.entries(SEMILLA[clave])) {
+      if (tanda) lote.set(doc(fs, col, id), datos, { merge: true }); else lote.set(doc(fs, col, id), datos);
+    }
+    lote.set(marca, { [clave]: true }, { merge: true });
+    await lote.commit();
   }
-  lote.set(marca, marcas, { merge: true });
-  await lote.commit();
 }
 
 const MENSAJES = {

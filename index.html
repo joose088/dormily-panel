@@ -288,6 +288,10 @@
 
   /* Enlaces y actividad */
   .enlaces { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+  .contacto { display: grid; gap: 2px; font-size: 13.5px; background: var(--sunk); border-radius: 10px; padding: 8px 10px; overflow-wrap: anywhere; }
+  .contacto a { color: var(--accent); text-decoration: none; }
+  .contacto a:hover { text-decoration: underline; }
+  .contacto .dir { color: var(--muted); }
   .enlace-card { background: var(--surface); border-radius: 14px; box-shadow: var(--sombra); padding: 12px 14px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; align-items: center; }
   .enlace-card a { color: var(--ink); font-weight: 700; text-decoration: none; overflow-wrap: anywhere; }
   .enlace-card a:hover { color: var(--accent); text-decoration: underline; }
@@ -394,6 +398,8 @@ const EST_TAREA = [['pendiente', 'Por hacer'], ['marcha', 'En marcha'], ['hecho'
 const TIPOS_EV = { reunion: 'Reunión', llamada: 'Llamada', plazo: 'Plazo o entrega', otro: 'Otro' };
 const EST_PROV = [['contactar', 'Por contactar'], ['esperando', 'Esperando respuesta'], ['decidir', 'Nos toca decidir'], ['acuerdo', 'Acuerdo cerrado'], ['descartado', 'Descartado']];
 const CLASE_PROV = { contactar: '', esperando: 'azul', decidir: 'warn', acuerdo: 'ok', descartado: 'bad' };
+const TIPOS_PROV = [['colchones', 'Colchones'], ['canapes', 'Canapés y bases'], ['ambos', 'Colchones y canapés']];
+const PRIORIDADES = [['alta', 'Prioridad alta'], ['media', 'Prioridad media'], ['baja', 'Prioridad baja']];
 const EST_COMPRA = [['borrador', 'Por pedir'], ['pedido', 'Pedido enviado'], ['confirmado', 'Confirmado'], ['fabricacion', 'En fabricación'], ['listo', 'Listo para recoger'], ['recibido', 'Recibido'], ['cancelado', 'Cancelado']];
 const ABIERTA = (c) => !['recibido', 'cancelado'].includes(c.estado);
 const EST_CON = [['idea', 'Idea'], ['guion', 'Guion'], ['grabado', 'Grabado'], ['editado', 'Editado'], ['publicado', 'Publicado']];
@@ -409,7 +415,7 @@ const MAX_PDF = 700 * 1024;
 const S = {
   db: null, yo: null, escribir: true, actividad: [], listo: {},
   vista: 'tareas', persona: 'all', area: 'all', soloVencidas: false, verHechas: true, verCerrados: false,
-  periodo: 'anio', filtroMov: 'todos', mes: null, dia: null
+  periodo: 'anio', filtroMov: 'todos', filtroProv: 'todos', verDescartados: false, mes: null, dia: null
 };
 COLS.forEach((c) => { S[c] = []; S.listo[c] = false; });
 S.listo.actividad = false;
@@ -809,18 +815,43 @@ function exportarCSV() {
 }
 
 /* ---------- Proveedores ---------- */
+// Turns the free-text contact into lines with clickable emails and phone numbers.
+function contactoHtml(t) {
+  return String(t || '').split('\n').filter((l) => l.trim()).map((l) => {
+    const e = esc(l)
+      .replace(/([\w.+-]+@[\w-]+(\.[\w-]+)+)/g, '<a href="mailto:$1">$1</a>')
+      .replace(/(^|[^\d@\w])((?:\+34 ?)?[6789]\d{2}(?: ?\d{2,3}){2,3})(?![\d@])/g, (m, a, n) => a + '<a href="tel:' + n.replace(/\s/g, '') + '">' + n + '</a>');
+    return '<span>' + e + '</span>';
+  }).join('');
+}
 function renderProveedores() {
   const h = hoyIso();
-  const orden = EST_PROV.map((e) => e[0]);
-  const lista = S.proveedores.slice().sort((a, b) => orden.indexOf(a.estado) - orden.indexOf(b.estado) || (a.nombre || '').localeCompare(b.nombre || '', 'es'));
-  const cards = lista.map((p) => '<article class="card"' + (p.estado === 'descartado' ? ' style="opacity:.7"' : '') + '><h3>' + esc(p.nombre) + '</h3>' +
-    '<div class="linea"><span class="pill ' + (CLASE_PROV[p.estado] || '') + '">' + esc(etiqueta(EST_PROV, p.estado)) + '</span>' + (p.que ? '<span>' + esc(p.que) + '</span>' : '') + '</div>' +
-    (p.siguientePaso ? '<div class="txt"><b>Siguiente paso:</b> ' + esc(p.siguientePaso) + (p.fechaSiguiente ? ' <span class="fecha ' + (p.fechaSiguiente < h ? 'vencida' : '') + '">(' + esc(textoFecha(p.fechaSiguiente)) + ')</span>' : '') + '</div>' : '') +
-    (p.condiciones ? '<div class="txt" style="color:var(--muted)">' + esc(p.condiciones) + '</div>' : '') +
-    (p.contacto ? '<details><summary style="cursor:pointer;font-size:13px;color:var(--accent)">Contacto</summary><div class="txt" style="margin-top:6px">' + esc(p.contacto) + '</div></details>' : '') +
-    '<div class="pie">' + (p.actualizadoPor ? '<span>Actualizado por ' + esc(nombre(p.actualizadoPor)) + '</span>' : '') + '<span class="der"><button class="mini" type="button" data-abrir="proveedores:' + esc(p.id) + '">Abrir</button></span></div></article>').join('');
-  return cabecera('Proveedores', 'Estado de cada negociación, condiciones, contactos y siguiente paso.', '<button class="btn primario" type="button" data-nuevo="proveedor">+ Proveedor</button>') +
-    (cargando('proveedores', 'proveedores') || (lista.length ? '<div class="rejilla-cards">' + cards + '</div>' : '<div class="vacio">Aún no hay proveedores.</div>'));
+  const orden = ['decidir', 'esperando', 'acuerdo', 'contactar', 'descartado'];
+  const ordenPri = { alta: 0, media: 1, baja: 2 };
+  const descartados = S.proveedores.filter((p) => p.estado === 'descartado').length;
+  const lista = S.proveedores
+    .filter((p) => S.filtroProv === 'todos' || p.tipo === S.filtroProv || (p.tipo === 'ambos' && S.filtroProv !== 'todos'))
+    .filter((p) => S.verDescartados || p.estado !== 'descartado')
+    .sort((a, b) => orden.indexOf(a.estado) - orden.indexOf(b.estado) || (ordenPri[a.prioridad] ?? 1) - (ordenPri[b.prioridad] ?? 1) || (a.nombre || '').localeCompare(b.nombre || '', 'es'));
+  const cards = lista.map((p) => {
+    const web = urlSegura(p.web);
+    let host = ''; try { host = web ? new URL(web).host.replace(/^www\./, '') : ''; } catch (e) {}
+    return '<article class="card"' + (p.estado === 'descartado' ? ' style="opacity:.7"' : '') + '><h3>' + esc(p.nombre) + '</h3>' +
+      '<div class="linea"><span class="pill ' + (CLASE_PROV[p.estado] || '') + '">' + esc(etiqueta(EST_PROV, p.estado)) + '</span>' +
+      (p.prioridad && p.estado !== 'descartado' ? '<span class="pill' + (p.prioridad === 'alta' ? ' rosa' : '') + '">' + esc(etiqueta(PRIORIDADES, p.prioridad)) + '</span>' : '') + '</div>' +
+      (p.que ? '<div class="linea"><span>' + esc(p.que) + '</span></div>' : '') +
+      (p.contacto || p.direccion || web ? '<div class="contacto">' + contactoHtml(p.contacto) +
+        (p.direccion ? '<span class="dir">' + esc(p.direccion) + '</span>' : '') +
+        (web ? '<a href="' + esc(web) + '" target="_blank" rel="noopener">' + esc(host) + '</a>' : '') + '</div>' : '') +
+      (p.siguientePaso ? '<div class="txt"><b>Siguiente paso:</b> ' + esc(p.siguientePaso) + (p.fechaSiguiente ? ' <span class="fecha ' + (p.fechaSiguiente < h ? 'vencida' : '') + '">(' + esc(textoFecha(p.fechaSiguiente)) + ')</span>' : '') + '</div>' : '') +
+      (p.condiciones ? '<div class="txt" style="color:var(--muted)">' + esc(p.condiciones) + '</div>' : '') +
+      (p.notas ? '<div class="txt" style="color:var(--muted);font-style:italic">' + esc(p.notas) + '</div>' : '') +
+      '<div class="pie">' + (p.actualizadoPor ? '<span>Actualizado por ' + esc(nombre(p.actualizadoPor)) + '</span>' : '') + '<span class="der"><button class="mini" type="button" data-abrir="proveedores:' + esc(p.id) + '">Editar</button></span></div></article>';
+  }).join('');
+  const chips = [['todos', 'Todos']].concat(TIPOS_PROV.slice(0, 2)).map(([k, n]) => '<button class="chip" type="button" data-chipprov="' + k + '" aria-pressed="' + (S.filtroProv === k) + '">' + n + '</button>').join('') +
+    (descartados ? '<label class="chk"><input type="checkbox" id="f-descartados"' + (S.verDescartados ? ' checked' : '') + '> Ver descartados (' + descartados + ')</label>' : '');
+  return cabecera('Proveedores', S.proveedores.length ? S.proveedores.length + ' fabricantes · estado de cada negociación, contacto y siguiente paso' : 'Estado de cada negociación, condiciones, contactos y siguiente paso.', '<button class="btn primario" type="button" data-nuevo="proveedor">+ Proveedor</button>') +
+    (cargando('proveedores', 'proveedores') || '<div class="filtros">' + chips + '</div>' + (lista.length ? '<div class="rejilla-cards">' + cards + '</div>' : '<div class="vacio">No hay proveedores con este filtro.</div>'));
 }
 
 /* ---------- Contenido ---------- */
@@ -1212,11 +1243,15 @@ function formPago(m, propuesta) {
 }
 function formProveedor(p) {
   const nuevo = !p;
-  p = p || { estado: 'contactar' };
+  p = p || { estado: 'contactar', tipo: 'colchones', prioridad: 'media' };
   const campos = [
     { n: 'nombre', l: 'Nombre', req: true, max: 120 },
-    { n: 'que', l: 'Qué nos suministraría', max: 160 },
-    { n: 'estado', l: 'Estado', t: 'select', op: EST_PROV, ancho: true },
+    { n: 'tipo', l: 'Tipo', t: 'select', op: TIPOS_PROV },
+    { n: 'que', l: 'Qué fabrican o nos suministrarían', ancho: true, max: 160 },
+    { n: 'estado', l: 'Estado', t: 'select', op: EST_PROV },
+    { n: 'prioridad', l: 'Prioridad', t: 'select', op: PRIORIDADES },
+    { n: 'direccion', l: 'Dirección', ancho: true, max: 200 },
+    { n: 'web', l: 'Web', ancho: true, max: 300, ph: 'https://' },
     { n: 'siguientePaso', l: 'Siguiente paso', max: 200 },
     { n: 'fechaSiguiente', l: 'Fecha del siguiente paso', t: 'date' },
     { n: 'condiciones', l: 'Condiciones y precios', t: 'textarea', ancho: true },
@@ -1226,6 +1261,7 @@ function formProveedor(p) {
   abrirHoja({
     titulo: nuevo ? 'Nuevo proveedor' : p.nombre, campos, valores: p,
     alGuardar(d) {
+      if (d.web) d.web = urlSegura(d.web);
       d.actualizado = new Date().toISOString(); d.actualizadoPor = S.yo;
       if (nuevo) return escribir(() => col('proveedores').add(d), 'Proveedor añadido', 'añadió el proveedor ' + d.nombre);
       const cambio = d.estado !== p.estado ? ' (ahora: ' + etiqueta(EST_PROV, d.estado).toLowerCase() + ')' : '';
@@ -1336,6 +1372,7 @@ document.addEventListener('click', (e) => {
   }
   if (b.dataset.paz) { const [de, a, v] = b.dataset.paz.split(':'); return formPago(null, { de, a, v: Number(v) }); }
   if (b.dataset.chipmov) { S.filtroMov = b.dataset.chipmov; return render(); }
+  if (b.dataset.chipprov) { S.filtroProv = b.dataset.chipprov; return render(); }
   if (b.id === 'exportar') return exportarCSV();
   if (b.dataset.dia) { S.dia = b.dataset.dia; if (S.dia.slice(0, 7) !== S.mes) S.mes = S.dia.slice(0, 7); return render(); }
   if (b.id === 'mes-ant' || b.id === 'mes-sig') { const [y, m] = S.mes.split('-').map(Number); S.mes = iso(new Date(y, m - 1 + (b.id === 'mes-sig' ? 1 : -1), 1)).slice(0, 7); return render(); }
@@ -1349,6 +1386,7 @@ document.addEventListener('change', (e) => {
   if (e.target.id === 'f-area') { S.area = e.target.value; render(); }
   if (e.target.id === 'f-hechas') { S.verHechas = e.target.checked; guardarLocal('verHechas', S.verHechas); render(); }
   if (e.target.id === 'f-cerrados') { S.verCerrados = e.target.checked; render(); }
+  if (e.target.id === 'f-descartados') { S.verDescartados = e.target.checked; render(); }
   if (e.target.id === 'f-periodo') { S.periodo = e.target.value; guardarLocal('periodo', S.periodo); render(); }
 });
 
