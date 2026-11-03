@@ -225,7 +225,7 @@
 </style>
 
 <style>
-  /* Added sections: pedidos, gastos, proveedores, contenido, enlaces, actividad, pasos y comentarios. */
+  /* Added sections: compras, contabilidad, proveedores, contenido, enlaces, actividad, pasos y comentarios. */
   .barra { flex-direction: column; align-items: stretch; }
   .barra .fila { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
   .pestanas { overflow-x: auto; max-width: 100%; scrollbar-width: none; }
@@ -394,15 +394,16 @@ const EST_TAREA = [['pendiente', 'Por hacer'], ['marcha', 'En marcha'], ['hecho'
 const TIPOS_EV = { reunion: 'Reunión', llamada: 'Llamada', plazo: 'Plazo o entrega', otro: 'Otro' };
 const EST_PROV = [['contactar', 'Por contactar'], ['esperando', 'Esperando respuesta'], ['decidir', 'Nos toca decidir'], ['acuerdo', 'Acuerdo cerrado'], ['descartado', 'Descartado']];
 const CLASE_PROV = { contactar: '', esperando: 'azul', decidir: 'warn', acuerdo: 'ok', descartado: 'bad' };
-const EST_PED = [['nuevo', 'Nuevo'], ['fabrica', 'Pedido a fábrica'], ['listo', 'Listo para entregar'], ['prueba', 'En prueba (30 noches)'], ['cerrado', 'Cerrado'], ['devolucion', 'Devolución']];
+const EST_COMPRA = [['borrador', 'Por pedir'], ['pedido', 'Pedido enviado'], ['confirmado', 'Confirmado'], ['fabricacion', 'En fabricación'], ['listo', 'Listo para recoger'], ['recibido', 'Recibido'], ['cancelado', 'Cancelado']];
+const ABIERTA = (c) => !['recibido', 'cancelado'].includes(c.estado);
 const EST_CON = [['idea', 'Idea'], ['guion', 'Guion'], ['grabado', 'Grabado'], ['editado', 'Editado'], ['publicado', 'Publicado']];
 const CAT_GASTO = ['Producto y proveedores', 'Envíos y transporte', 'Tienda online y apps', 'Publicidad y marketing', 'Teléfono e internet', 'Gestoría y legal', 'Material y muestras', 'Otros gastos'];
 const CAT_INGRESO = ['Ventas', 'Aportación de socios', 'Otros ingresos'];
 const IVAS = [['21', '21 %'], ['10', '10 %'], ['4', '4 %'], ['0', 'Sin IVA']];
 const REDES = ['Instagram y TikTok', 'Instagram', 'TikTok', 'Facebook', 'YouTube'];
 const FORMATOS = ['Vídeo vertical', 'Carrusel', 'Foto', 'Historia'];
-const VISTAS = [['tareas', 'Tareas'], ['calendario', 'Calendario'], ['pedidos', 'Pedidos'], ['contabilidad', 'Contabilidad'], ['proveedores', 'Proveedores'], ['contenido', 'Contenido'], ['notas', 'Notas'], ['enlaces', 'Enlaces'], ['actividad', 'Actividad']];
-const COLS = ['tareas', 'eventos', 'notas', 'movimientos', 'proveedores', 'pedidos', 'contenido', 'enlaces'];
+const VISTAS = [['tareas', 'Tareas'], ['calendario', 'Calendario'], ['compras', 'Compras'], ['contabilidad', 'Contabilidad'], ['proveedores', 'Proveedores'], ['contenido', 'Contenido'], ['notas', 'Notas'], ['enlaces', 'Enlaces'], ['actividad', 'Actividad']];
+const COLS = ['tareas', 'eventos', 'notas', 'movimientos', 'proveedores', 'compras', 'contenido', 'enlaces'];
 const MAX_PDF = 700 * 1024;
 
 const S = {
@@ -512,11 +513,8 @@ function gcalUrl({ titulo, fecha, hora, detalles, lugar }) {
 }
 
 /* ---------- Derived data ---------- */
-function nochePrueba(p) {
-  if (p.estado !== 'prueba' || !p.fechaEntrega) return null;
-  return difDias(p.fechaEntrega, hoyIso()) + 1;
-}
-const pedidoAviso = (p) => { const n = nochePrueba(p); return n !== null && n >= 25; };
+// A purchase order needs attention when it is ready to collect or its expected date has passed.
+const compraAviso = (c) => c.estado === 'listo' || (ABIERTA(c) && c.estado !== 'borrador' && c.fechaPrevista && c.fechaPrevista < hoyIso());
 function ivaDe(m) { const t = m.importe || 0, p = Number(m.iva || 0); const base = Math.round((t / (1 + p / 100)) * 100) / 100; return { base, cuota: Math.round((t - base) * 100) / 100 }; }
 function enPeriodo(fecha) {
   if (S.periodo === 'todo') return true;
@@ -574,10 +572,10 @@ function renderCifras() {
   $('c-prox-cuando').textContent = prox ? textoFecha(prox.fecha) + (prox.hora ? ' · ' + prox.hora : '') : 'próximo en el calendario';
 }
 function renderPestanas() {
-  const llamadas = S.pedidos.filter(pedidoAviso).length;
+  const avisosCompra = S.compras.filter(compraAviso).length;
   const venc = S.tareas.filter((t) => t.estado !== 'hecho' && t.fecha && t.fecha < hoyIso()).length;
   $('pestanas').innerHTML = VISTAS.map(([k, n]) => {
-    const cuenta = k === 'pedidos' && llamadas ? llamadas : (k === 'tareas' && venc ? venc : 0);
+    const cuenta = k === 'compras' && avisosCompra ? avisosCompra : (k === 'tareas' && venc ? venc : 0);
     return '<button class="pestana" role="tab" type="button" data-vista="' + k + '" aria-selected="' + (S.vista === k) + '">' + n + (cuenta ? '<span class="cuenta">' + cuenta + '</span>' : '') + '</button>';
   }).join('');
 }
@@ -651,14 +649,7 @@ function itemsDelDia(s) {
   const out = [];
   S.eventos.filter((e) => e.fecha === s).forEach((e) => out.push({ c: 't-' + (e.tipo || 'otro'), h: e.hora || '', t: e.titulo, sub: (TIPOS_EV[e.tipo] || 'Evento') + (e.lugar ? ' · ' + e.lugar : ''), a: 'eventos:' + e.id, o: e.hora || '00:00', ev: e }));
   S.tareas.filter((t) => t.fecha === s).forEach((t) => out.push({ c: 'tarea' + (t.estado === 'hecho' ? ' hecha' : ''), h: 'Límite', t: t.titulo, sub: nombre(t.responsable) + ' · ' + etiqueta(EST_TAREA, t.estado), a: 'tareas:' + t.id, o: '98' }));
-  S.pedidos.forEach((p) => {
-    const quien = '#' + (p.numero || '') + ' ' + (p.cliente || '');
-    if (p.fechaEntrega === s) out.push({ c: 'pedido', h: 'Entrega', t: 'Entrega ' + quien, sub: p.localidad || '', a: 'pedidos:' + p.id, o: '50' });
-    if (p.estado === 'prueba' && p.fechaEntrega) {
-      if (sumaDias(p.fechaEntrega, 24) === s) out.push({ c: 'pedido', h: 'Llamar', t: 'Llamar a ' + quien + ' (noche 25)', sub: 'Quedan 5 noches de prueba', a: 'pedidos:' + p.id, o: '51' });
-      if (sumaDias(p.fechaEntrega, 29) === s) out.push({ c: 'pedido', h: 'Fin', t: 'Fin de prueba ' + quien, sub: 'Noche 30', a: 'pedidos:' + p.id, o: '52' });
-    }
-  });
+  S.compras.filter((c) => c.fechaPrevista === s && c.estado !== 'cancelado').forEach((c) => out.push({ c: 'pedido' + (c.estado === 'recibido' ? ' hecha' : ''), h: 'Compra', t: (c.estado === 'listo' ? 'Recoger: ' : 'Llega: ') + (c.proveedor || '') + (c.referencia ? ' #' + c.referencia : ''), sub: etiqueta(EST_COMPRA, c.estado) + (c.que ? ' · ' + c.que.split('\n')[0] : ''), a: 'compras:' + c.id, o: '50' }));
   S.contenido.filter((c) => c.fecha === s).forEach((c) => out.push({ c: 'contenido' + (c.estado === 'publicado' ? ' hecha' : ''), h: 'Publicar', t: c.titulo, sub: (c.red || '') + ' · ' + etiqueta(EST_CON, c.estado), a: 'contenido:' + c.id, o: '60' }));
   S.proveedores.filter((p) => p.fechaSiguiente === s && p.estado !== 'descartado').forEach((p) => out.push({ c: 'proveedor', h: 'Prov.', t: p.nombre + ': ' + (p.siguientePaso || 'siguiente paso'), sub: etiqueta(EST_PROV, p.estado), a: 'proveedores:' + p.id, o: '70' }));
   return out.sort((a, b) => a.o.localeCompare(b.o));
@@ -700,44 +691,43 @@ function renderCalendario() {
     '<button type="button" id="mes-ant" aria-label="Mes anterior">‹</button><button type="button" id="mes-hoy">Hoy</button><button type="button" id="mes-sig" aria-label="Mes siguiente">›</button></div>' +
     '<div class="rejilla">' + celdas.join('') + '</div><div class="leyenda">' +
     '<span><i style="background:var(--accent-soft)"></i>Reunión</span><span><i style="background:var(--rosa-soft)"></i>Llamada</span><span><i style="background:var(--warn-soft)"></i>Plazo</span>' +
-    '<span><i style="border:1px dashed var(--line)"></i>Tarea</span><span><i style="background:var(--ok-soft)"></i>Pedido</span><span><i style="background:var(--rosa-soft);border:1px dashed var(--rosa)"></i>Publicación</span><span><i style="background:var(--sunk);border:1px solid var(--line)"></i>Proveedor</span>' +
+    '<span><i style="border:1px dashed var(--line)"></i>Tarea</span><span><i style="background:var(--ok-soft)"></i>Compra</span><span><i style="background:var(--rosa-soft);border:1px dashed var(--rosa)"></i>Publicación</span><span><i style="background:var(--sunk);border:1px solid var(--line)"></i>Proveedor</span>' +
     '</div></div><div class="lateral"><div class="panel">' + panelDia + '</div><div class="panel">' + agenda + '</div></div></div>';
 }
 
-/* ---------- Pedidos ---------- */
-function tarjetaPedido(p) {
-  const n = nochePrueba(p);
-  let prueba = '';
-  if (n !== null) {
-    if (n > 30) prueba = '<span class="pill bad">Prueba terminada: cerrar el pedido</span>';
-    else if (n >= 25) prueba = '<span class="pill warn">Llamar al cliente · termina ' + esc(textoFecha(sumaDias(p.fechaEntrega, 29))) + '</span>';
-    else prueba = '<span class="pill azul">Noche ' + Math.max(n, 1) + ' de 30</span>';
-  }
-  const idx = EST_PED.findIndex((e) => e[0] === p.estado);
-  const sig = idx >= 0 && idx < 4 ? EST_PED[idx + 1] : null;
-  return '<article class="card' + (pedidoAviso(p) ? ' aviso-card' : '') + '">' +
-    '<h3>#' + esc(p.numero || '') + ' · ' + esc(p.cliente || 'Sin nombre') + '</h3>' +
-    '<div class="linea"><span class="pill' + (p.estado === 'devolucion' ? ' bad' : p.estado === 'cerrado' ? ' ok' : '') + '">' + esc(etiqueta(EST_PED, p.estado)) + '</span>' +
-    (p.importe ? '<b style="color:var(--ink)">' + euros(p.importe) + '</b>' : '') + (p.localidad ? '<span>' + esc(p.localidad) + '</span>' : '') + '</div>' +
-    (p.productos ? '<div class="txt">' + esc(p.productos) + '</div>' : '') +
-    (prueba ? '<div class="linea">' + prueba + '</div>' : '') +
-    (p.estado === 'devolucion' ? '<div class="linea">' + (p.reembolsado ? '<span class="pill ok">Reembolsado</span>' : '<span class="pill warn">Falta reembolsar</span>') + '</div>' : '') +
-    '<div class="pie">' + (p.fechaPedido ? '<span>Pedido ' + esc(textoFecha(p.fechaPedido)) + '</span>' : '') + (p.fechaEntrega ? '<span>Entrega ' + esc(textoFecha(p.fechaEntrega)) + '</span>' : '') +
-    '<span class="der">' + (S.escribir && sig ? '<button class="mini" type="button" data-mover="pedidos:' + esc(p.id) + ':' + sig[0] + '">' + esc(sig[1]) + ' →</button>' : '') +
-    '<button class="mini" type="button" data-abrir="pedidos:' + esc(p.id) + '">Abrir</button></span></div></article>';
+/* ---------- Compras (pedidos a proveedores) ---------- */
+function tarjetaCompra(c) {
+  const h = hoyIso();
+  const idx = EST_COMPRA.findIndex((e) => e[0] === c.estado);
+  const sig = idx >= 0 && idx < 5 ? EST_COMPRA[idx + 1] : null;
+  const tarde = ABIERTA(c) && c.estado !== 'borrador' && c.estado !== 'listo' && c.fechaPrevista && c.fechaPrevista < h;
+  const clase = c.estado === 'recibido' ? 'ok' : c.estado === 'cancelado' ? 'bad' : c.estado === 'listo' ? 'warn' : c.estado === 'borrador' ? '' : 'azul';
+  return '<article class="card' + (compraAviso(c) ? ' aviso-card' : '') + '">' +
+    '<h3>' + esc(c.proveedor || 'Sin proveedor') + (c.referencia ? ' · #' + esc(c.referencia) : '') + '</h3>' +
+    '<div class="linea"><span class="pill ' + clase + '">' + esc(etiqueta(EST_COMPRA, c.estado)) + '</span>' +
+    (c.importe ? '<b style="color:var(--ink)">' + euros(c.importe) + '</b>' : '') +
+    (c.pagado ? '<span class="pill ok">Pagado</span>' : (c.importe && ABIERTA(c) ? '<span class="pill">Sin pagar</span>' : '')) + '</div>' +
+    (c.que ? '<div class="txt">' + esc(c.que) + '</div>' : '') +
+    (c.pedidoShopify ? '<div class="linea"><span>Para el pedido de Shopify ' + esc(c.pedidoShopify) + '</span></div>' : '') +
+    (tarde ? '<div class="linea"><span class="pill bad">Se esperaba ' + esc(textoFecha(c.fechaPrevista)) + ': preguntar al proveedor</span></div>' : '') +
+    (c.estado === 'listo' ? '<div class="linea"><span class="pill warn">Listo: organizar la recogida</span></div>' : '') +
+    '<div class="pie">' + (c.fechaPedido ? '<span>Pedido ' + esc(textoFecha(c.fechaPedido)) + '</span>' : '') + (c.fechaPrevista && !tarde ? '<span>Previsto ' + esc(textoFecha(c.fechaPrevista)) + '</span>' : '') +
+    '<span class="der">' + (S.escribir && sig ? '<button class="mini" type="button" data-mover="compras:' + esc(c.id) + ':' + sig[0] + '">' + esc(sig[1]) + ' →</button>' : '') +
+    '<button class="mini" type="button" data-abrir="compras:' + esc(c.id) + '">Abrir</button></span></div></article>';
 }
-function renderPedidos() {
-  const enPrueba = S.pedidos.filter((p) => p.estado === 'prueba').length;
-  const llamar = S.pedidos.filter(pedidoAviso).length;
-  let html = cabecera('Pedidos', enPrueba ? enPrueba + ' en prueba' + (llamar ? ' · <b style="color:var(--warn)">' + llamar + ' por llamar</b>' : '') : 'Del pedido a la entrega y las 30 noches de prueba. El día 25 te avisa para llamar al cliente.',
-    '<label class="chk" style="font-size:13.5px;color:var(--muted);display:inline-flex;gap:6px;align-items:center"><input type="checkbox" id="f-cerrados"' + (S.verCerrados ? ' checked' : '') + '> Ver cerrados</label><button class="btn primario" type="button" data-nuevo="pedido">+ Pedido</button>');
-  html += cargando('pedidos', 'pedidos');
-  if (S.listo.pedidos && !S.pedidos.length) return html + '<div class="vacio" style="margin-top:10px">Todavía no hay pedidos. Cuando entre el primero, apúntalo con «+ Pedido».</div>';
-  EST_PED.forEach(([k, n]) => {
-    if (k === 'cerrado' && !S.verCerrados) return;
-    const lista = S.pedidos.filter((p) => (p.estado || 'nuevo') === k).sort((a, b) => String(b.numero || '').localeCompare(String(a.numero || ''), 'es', { numeric: true }));
+function renderCompras() {
+  const abiertas = S.compras.filter(ABIERTA);
+  const pendientePago = abiertas.filter((c) => c.importe && !c.pagado).reduce((t, c) => t + c.importe, 0);
+  const avisos = S.compras.filter(compraAviso).length;
+  let html = cabecera('Compras', abiertas.length ? abiertas.length + ' en curso' + (pendientePago ? ' · ' + euros(pendientePago) + ' sin pagar' : '') + (avisos ? ' · <b style="color:var(--warn)">' + avisos + ' necesitan atención</b>' : '') : 'Pedidos a proveedores: qué se ha pedido, cuándo llega y si está pagado. Las ventas están en Shopify.',
+    '<label class="chk" style="font-size:13.5px;color:var(--muted);display:inline-flex;gap:6px;align-items:center"><input type="checkbox" id="f-cerrados"' + (S.verCerrados ? ' checked' : '') + '> Ver recibidos y cancelados</label><button class="btn primario" type="button" data-nuevo="compra">+ Compra</button>');
+  html += cargando('compras', 'compras');
+  if (S.listo.compras && !S.compras.length) return html + '<div class="vacio" style="margin-top:10px">Todavía no hay compras. Cuando hagáis el primer pedido a un proveedor, apúntalo con «+ Compra».</div>';
+  EST_COMPRA.forEach(([k, n]) => {
+    if (!S.verCerrados && (k === 'recibido' || k === 'cancelado')) return;
+    const lista = S.compras.filter((c) => (c.estado || 'borrador') === k).sort((a, b) => (a.fechaPrevista || '9999').localeCompare(b.fechaPrevista || '9999'));
     if (!lista.length) return;
-    html += '<h3 class="grupo-titulo">' + esc(n) + ' <span class="n">' + lista.length + '</span></h3><div class="rejilla-cards" style="padding-bottom:4px">' + lista.map(tarjetaPedido).join('') + '</div>';
+    html += '<h3 class="grupo-titulo">' + esc(n) + ' <span class="n">' + lista.length + '</span></h3><div class="rejilla-cards" style="padding-bottom:4px">' + lista.map(tarjetaCompra).join('') + '</div>';
   });
   return html + '<div style="height:40px"></div>';
 }
@@ -888,7 +878,7 @@ function renderActividad() {
 }
 
 /* ---------- Render ---------- */
-const VISTA_FN = { tareas: renderTareas, calendario: renderCalendario, pedidos: renderPedidos, contabilidad: renderContabilidad, proveedores: renderProveedores, contenido: renderContenido, notas: renderNotas, enlaces: renderEnlaces, actividad: renderActividad };
+const VISTA_FN = { tareas: renderTareas, calendario: renderCalendario, compras: renderCompras, contabilidad: renderContabilidad, proveedores: renderProveedores, contenido: renderContenido, notas: renderNotas, enlaces: renderEnlaces, actividad: renderActividad };
 function render() {
   renderCifras();
   renderPestanas();
@@ -1052,42 +1042,43 @@ function formEvento(e, dia) {
     alBorrar: nuevo ? null : () => escribir(() => col('eventos').doc(e.id).delete(), 'Evento eliminado', 'borró el evento «' + e.titulo + '»')
   });
 }
-function siguienteNumero() {
-  const nums = S.pedidos.map((p) => parseInt(p.numero, 10)).filter((n) => isFinite(n));
-  return String(nums.length ? Math.max(...nums) + 1 : 1001);
-}
-function formPedido(p) {
-  const nuevo = !p;
-  p = p || { numero: siguienteNumero(), estado: 'nuevo', fechaPedido: hoyIso() };
+function formCompra(c) {
+  const nueva = !c;
+  c = c || { estado: 'pedido', fechaPedido: hoyIso(), proveedor: (S.proveedores.find((p) => p.estado === 'acuerdo') || {}).nombre || '' };
+  const nombresProv = S.proveedores.filter((p) => p.estado !== 'descartado').map((p) => p.nombre);
   const campos = [
-    { n: 'numero', l: 'Nº de pedido', req: true, max: 20 },
-    { n: 'cliente', l: 'Cliente', req: true, max: 120 },
-    { n: 'telefono', l: 'Teléfono', t: 'tel', max: 30 },
-    { n: 'localidad', l: 'Localidad', max: 120 },
-    { n: 'direccion', l: 'Dirección de entrega', ancho: true, max: 240 },
-    { n: 'productos', l: 'Productos', t: 'textarea', ancho: true, ph: 'Ej.: Colchón Antifaz 150×190 + canapé 30 cm' },
-    { n: 'importe', l: 'Importe total (€)', t: 'dinero' },
-    { n: 'estado', l: 'Estado', t: 'select', op: EST_PED },
+    { n: 'proveedor', l: 'Proveedor', req: true, lista: nombresProv, max: 120 },
+    { n: 'referencia', l: 'Nº de pedido o referencia', max: 60 },
+    { n: 'que', l: 'Qué se ha pedido', t: 'textarea', ancho: true, req: true, ph: 'Ej.: 2 × colchón Antifaz 150×190\n1 × canapé Iron 30 150×190' },
+    { n: 'importe', l: 'Importe total con IVA (€)', t: 'dinero' },
+    { n: 'estado', l: 'Estado', t: 'select', op: EST_COMPRA },
     { n: 'fechaPedido', l: 'Fecha del pedido', t: 'date' },
-    { n: 'fechaEntrega', l: 'Fecha de entrega', t: 'date' },
-    { n: 'reembolsado', l: 'Dinero devuelto al cliente (si es una devolución)', t: 'check' },
+    { n: 'fechaPrevista', l: 'Fecha prevista de recogida o llegada', t: 'date' },
+    { n: 'pedidoShopify', l: 'Pedido de Shopify al que va (opcional)', max: 40, ph: 'Ej.: #1001' },
+    { n: 'responsable', l: 'Quién lo gestiona', t: 'select', op: Object.keys(PERSONAS).map((k) => [k, PERSONAS[k].n]) },
+    { n: 'pagado', l: 'Ya está pagado al proveedor', t: 'check' },
     { n: 'notas', l: 'Notas', t: 'textarea', ancho: true }
   ];
-  if (nuevo) campos.push({ n: 'alContable', l: 'Apuntar el cobro en Contabilidad como ingreso', t: 'check', def: true });
+  if (nueva) campos.push({ n: 'alContable', l: 'Apuntar el gasto en Contabilidad', t: 'check', def: true });
   abrirHoja({
-    titulo: nuevo ? 'Nuevo pedido' : 'Pedido #' + p.numero, campos, valores: p,
+    titulo: nueva ? 'Nueva compra' : 'Compra a ' + (c.proveedor || 'proveedor'), campos, valores: Object.assign({ responsable: S.yo || 'todos' }, c),
     async alGuardar(d) {
       const conta = d.alContable; delete d.alContable;
-      if (d.estado === 'prueba' && !d.fechaEntrega) d.fechaEntrega = hoyIso();
       d.actualizado = new Date().toISOString();
-      if (!nuevo) return escribir(() => col('pedidos').doc(p.id).update(d), 'Pedido guardado', 'actualizó el pedido #' + d.numero);
-      const ok = await escribir(() => col('pedidos').add(Object.assign(d, { creadoPor: S.yo })), 'Pedido creado', 'creó el pedido #' + d.numero + ' (' + d.cliente + ')');
+      const nombreCompra = d.proveedor + (d.referencia ? ' #' + d.referencia : '');
+      if (!nueva) {
+        const cambio = d.estado !== c.estado ? ' (ahora: ' + etiqueta(EST_COMPRA, d.estado).toLowerCase() + ')' : '';
+        return escribir(() => col('compras').doc(c.id).update(d), 'Compra guardada', 'actualizó la compra a ' + nombreCompra + cambio);
+      }
+      const ok = await escribir(() => col('compras').add(Object.assign(d, { creadoPor: S.yo, creado: new Date().toISOString() })), 'Compra apuntada', 'apuntó una compra a ' + nombreCompra);
       if (ok && conta && d.importe) {
-        await escribir(() => col('movimientos').doc(nuevoId()).set({ tipo: 'ingreso', fecha: d.fechaPedido || hoyIso(), concepto: 'Pedido #' + d.numero + ' · ' + d.cliente, contraparte: d.cliente, numeroFactura: '', categoria: 'Ventas', importe: d.importe, iva: '21', pagadoPor: 'comun', reparto: SOCIOS.slice(), notas: '', enlace: '', adjuntos: [], creado: new Date().toISOString(), creadoPor: S.yo }));
+        await escribir(() => col('movimientos').doc(nuevoId()).set({ tipo: 'gasto', fecha: d.fechaPedido || hoyIso(), concepto: 'Compra a ' + nombreCompra, contraparte: d.proveedor, numeroFactura: '', categoria: 'Producto y proveedores', importe: d.importe, iva: '21', pagadoPor: S.yo || 'jc', reparto: SOCIOS.slice(), notas: d.que, enlace: '', adjuntos: [], creado: new Date().toISOString(), creadoPor: S.yo }),
+          null, 'apuntó un gasto de ' + euros(d.importe) + ' («Compra a ' + nombreCompra + '»)');
+        aviso('Compra y gasto apuntados. Revisa en Contabilidad quién lo pagó y adjunta la factura.');
       }
       return ok;
     },
-    alBorrar: nuevo ? null : () => escribir(() => col('pedidos').doc(p.id).delete(), 'Pedido eliminado', 'borró el pedido #' + p.numero)
+    alBorrar: nueva ? null : () => escribir(() => col('compras').doc(c.id).delete(), 'Compra eliminada', 'borró la compra a ' + (c.proveedor || '') + (c.referencia ? ' #' + c.referencia : ''))
   });
 }
 
@@ -1307,8 +1298,8 @@ function formEnlace(l) {
     alBorrar: nuevo ? null : () => escribir(() => col('enlaces').doc(l.id).delete(), 'Enlace eliminado', 'borró el enlace ' + l.titulo)
   });
 }
-const ABRIR = { tareas: formTarea, eventos: formEvento, pedidos: formPedido, movimientos: (m) => formMovimiento(m), proveedores: formProveedor, contenido: formContenido, notas: formNota, enlaces: formEnlace };
-const NUEVO = { tarea: () => formTarea(), evento: () => formEvento(null, S.vista === 'calendario' ? S.dia : hoyIso()), pedido: () => formPedido(), gasto: () => formMovimiento(null, 'gasto'), ingreso: () => formMovimiento(null, 'ingreso'), pago: () => formPago(), proveedor: () => formProveedor(), contenido: () => formContenido(), nota: () => formNota(), enlace: () => formEnlace() };
+const ABRIR = { tareas: formTarea, eventos: formEvento, compras: formCompra, movimientos: (m) => formMovimiento(m), proveedores: formProveedor, contenido: formContenido, notas: formNota, enlaces: formEnlace };
+const NUEVO = { tarea: () => formTarea(), evento: () => formEvento(null, S.vista === 'calendario' ? S.dia : hoyIso()), compra: () => formCompra(), gasto: () => formMovimiento(null, 'gasto'), ingreso: () => formMovimiento(null, 'ingreso'), pago: () => formPago(), proveedor: () => formProveedor(), contenido: () => formContenido(), nota: () => formNota(), enlace: () => formEnlace() };
 
 /* ---------- Events ---------- */
 document.addEventListener('click', (e) => {
@@ -1339,7 +1330,7 @@ document.addEventListener('click', (e) => {
     const cambio = { estado, actualizado: new Date().toISOString() };
     let texto;
     if (c === 'tareas') { cambio.actualizada = cambio.actualizado; delete cambio.actualizado; if (estado === 'hecho') { cambio.hechaPor = S.yo; cambio.hechaEn = new Date().toISOString(); } texto = (estado === 'hecho' ? 'completó «' : 'movió «') + x.titulo + '»' + (estado === 'hecho' ? '' : ' a ' + etiqueta(EST_TAREA, estado).toLowerCase()); }
-    if (c === 'pedidos') { if (estado === 'prueba' && !x.fechaEntrega) cambio.fechaEntrega = hoyIso(); texto = 'pasó el pedido #' + x.numero + ' a «' + etiqueta(EST_PED, estado).toLowerCase() + '»'; }
+    if (c === 'compras') { if (estado === 'recibido') cambio.fechaRecibido = hoyIso(); texto = 'pasó la compra a ' + (x.proveedor || '') + (x.referencia ? ' #' + x.referencia : '') + ' a «' + etiqueta(EST_COMPRA, estado).toLowerCase() + '»'; }
     if (c === 'contenido') texto = 'pasó «' + x.titulo + '» a ' + etiqueta(EST_CON, estado).toLowerCase();
     return escribir(() => col(c).doc(id).update(cambio), null, texto);
   }

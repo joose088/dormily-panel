@@ -8,8 +8,8 @@ Para entrar, cada uno toca su nombre y escribe el **código del equipo**. El mó
 | Sección | Qué hay |
 |---|---|
 | Tareas | Por hacer, en marcha y hecho; responsable, área, fecha límite, pasos y comentarios |
-| Calendario | Eventos, fechas límite, entregas de pedidos, fin de las 30 noches, publicaciones y siguientes pasos con proveedores. Botón «Añadir a Google Calendar» |
-| Pedidos | Del pedido a la entrega; cuenta las 30 noches y avisa el día 25 para llamar al cliente |
+| Calendario | Eventos, fechas límite, llegadas de compras, publicaciones y siguientes pasos con proveedores. Botón «Añadir a Google Calendar» |
+| Compras | Pedidos a proveedores: qué se pide, estado (de «por pedir» a «recibido»), fecha prevista, si está pagado y a qué pedido de Shopify va. Puede apuntar el gasto en Contabilidad. Las ventas están en Shopify |
 | Contabilidad | Gastos e ingresos con IVA, facturas adjuntas (foto o PDF), cuentas entre socios («quién debe a quién») y exportación CSV para la gestoría |
 | Proveedores | Estado de cada negociación, condiciones, contactos y siguiente paso |
 | Contenido | Ideas y publicaciones para redes, de idea a publicado |
