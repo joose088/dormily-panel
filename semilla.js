@@ -1,4 +1,4 @@
-// Datos iniciales: se cargan una sola vez, la primera vez que alguien del equipo entra.
+// Datos iniciales: cada colección se carga una sola vez, la primera vez que alguien del equipo entra.
 export const SEMILLA = {
   "tareas": {
     "t01": {
@@ -213,6 +213,171 @@ export const SEMILLA = {
       "fijada": false,
       "texto": "Teléfono: 968 790 909\nGracia (marketing y fotos): marketing@azorindescanso.com\nYolanda Puche y Yolanda Martínez: precios y condiciones\nInformación: info@azorindescanso.com\nPedidos: ventas1@ … ventas7@azorindescanso.com\nIncidencias: atencion@azorindescanso.com",
       "titulo": "Contactos de Azorín Descanso"
+    }
+  },
+  "proveedores": {
+    "p01": {
+      "nombre": "ECUS (Ecus Sleep)",
+      "que": "Colchones en marca blanca Dormily",
+      "estado": "esperando",
+      "contacto": "",
+      "condiciones": "No venden sus colchones online: nos los fabricarían en marca blanca, con marca Dormily. El precio de venta lo ponemos nosotros.",
+      "siguientePaso": "Recibir el presupuesto y pedir muestras",
+      "fechaSiguiente": "",
+      "notas": "Hablamos el 2 de noviembre de 2026.",
+      "actualizado": "2026-11-03T12:00:00.000Z"
+    },
+    "p02": {
+      "nombre": "Azorín Descanso",
+      "que": "Canapés",
+      "estado": "decidir",
+      "contacto": "Teléfono: 968 790 909\nGracia (marketing y fotos): marketing@azorindescanso.com\nYolanda Puche y Yolanda Martínez: precios y condiciones\nPedidos: ventas1@ … ventas7@azorindescanso.com\nIncidencias: atencion@azorindescanso.com",
+      "condiciones": "0,37 €/punto −6 % = 0,3478 €/punto, IVA incluido. Los puntos son el PVP mínimo. Pago al contado, mercancía en su fábrica, devoluciones solo por defecto de fabricación.",
+      "siguientePaso": "Darles respuesta sobre los canapés",
+      "fechaSiguiente": "",
+      "notas": "",
+      "actualizado": "2026-11-03T12:00:00.000Z"
+    },
+    "p03": {
+      "nombre": "BioDescanso",
+      "que": "Colchones",
+      "estado": "descartado",
+      "contacto": "",
+      "condiciones": "Dijeron que no tenían capacidad de producción.",
+      "siguientePaso": "",
+      "fechaSiguiente": "",
+      "notas": "",
+      "actualizado": "2026-11-03T12:00:00.000Z"
+    }
+  },
+  "contenido": {
+    "c01": {
+      "titulo": "«Ese colchón no costaba 1.000 €. Nunca los costó.»",
+      "red": "Instagram y TikTok",
+      "formato": "Vídeo vertical",
+      "estado": "idea",
+      "fecha": "",
+      "responsable": "todos",
+      "notas": "Destapar los precios tachados y cerrar con «un precio justo todo el año».",
+      "enlace": "",
+      "actualizado": "2026-11-03T12:00:00.000Z"
+    },
+    "c02": {
+      "titulo": "«¿Duermes de lado y pasas calor? Te digo cuál.»",
+      "red": "Instagram y TikTok",
+      "formato": "Vídeo vertical",
+      "estado": "idea",
+      "fecha": "",
+      "responsable": "todos",
+      "notas": "Un fundador responde a un WhatsApp real (anonimizado). Llamada a hacer el test del colchón.",
+      "enlace": "",
+      "actualizado": "2026-11-03T12:00:00.000Z"
+    },
+    "c03": {
+      "titulo": "«De la furgoneta a tu cama en 20 minutos.»",
+      "red": "Instagram y TikTok",
+      "formato": "Vídeo vertical",
+      "estado": "idea",
+      "fecha": "",
+      "responsable": "todos",
+      "notas": "Entrega y montaje de un canapé en cámara rápida, con el colchón viejo saliendo por la puerta.",
+      "enlace": "",
+      "actualizado": "2026-11-03T12:00:00.000Z"
+    },
+    "c04": {
+      "titulo": "«4 de cada 10 colchones son más blandos de lo que dicen.»",
+      "red": "Instagram y TikTok",
+      "formato": "Vídeo vertical",
+      "estado": "idea",
+      "fecha": "",
+      "responsable": "todos",
+      "notas": "Dato de OCU (abril 2026) y cómo explicamos la firmeza: la mano, la postura y el peso.",
+      "enlace": "",
+      "actualizado": "2026-11-03T12:00:00.000Z"
+    },
+    "c05": {
+      "titulo": "«Si no te convence, te devolvemos el dinero en cuanto sale de tu casa.»",
+      "red": "Instagram y TikTok",
+      "formato": "Vídeo vertical",
+      "estado": "idea",
+      "fecha": "",
+      "responsable": "todos",
+      "notas": "El reembolso adelantado en 3 pasos.",
+      "enlace": "",
+      "actualizado": "2026-11-03T12:00:00.000Z"
+    },
+    "c06": {
+      "titulo": "«Así se hace un colchón por dentro.»",
+      "red": "Instagram y TikTok",
+      "formato": "Vídeo vertical",
+      "estado": "idea",
+      "fecha": "",
+      "responsable": "todos",
+      "notas": "Visita a la fábrica con cortes de capas, sin nombrar la ciudad. Pedir permiso al fabricante.",
+      "enlace": "",
+      "actualizado": "2026-11-03T12:00:00.000Z"
+    },
+    "c07": {
+      "titulo": "Serie: cómo detectar un descuento falso en colchones",
+      "red": "Instagram y TikTok",
+      "formato": "Vídeo vertical",
+      "estado": "idea",
+      "fecha": "",
+      "responsable": "todos",
+      "notas": "Para las semanas de Black Friday: no vendemos, captamos lista de espera.",
+      "enlace": "",
+      "actualizado": "2026-11-03T12:00:00.000Z"
+    }
+  },
+  "enlaces": {
+    "l01": {
+      "titulo": "Tienda dormily.es",
+      "url": "https://dormily.es",
+      "grupo": "Tienda",
+      "notas": "",
+      "orden": 0
+    },
+    "l02": {
+      "titulo": "Admin de Shopify",
+      "url": "https://admin.shopify.com",
+      "grupo": "Tienda",
+      "notas": "",
+      "orden": 1
+    },
+    "l03": {
+      "titulo": "Klaviyo",
+      "url": "https://www.klaviyo.com/dashboard",
+      "grupo": "Herramientas",
+      "notas": "",
+      "orden": 2
+    },
+    "l04": {
+      "titulo": "Zadarma (centralita)",
+      "url": "https://my.zadarma.com",
+      "grupo": "Herramientas",
+      "notas": "",
+      "orden": 3
+    },
+    "l05": {
+      "titulo": "Firebase del panel",
+      "url": "https://console.firebase.google.com/project/dormily-panel",
+      "grupo": "Panel",
+      "notas": "",
+      "orden": 4
+    },
+    "l06": {
+      "titulo": "Vercel",
+      "url": "https://vercel.com/dashboard",
+      "grupo": "Panel",
+      "notas": "",
+      "orden": 5
+    },
+    "l07": {
+      "titulo": "Código del panel (GitHub)",
+      "url": "https://github.com/joose088/dormily-panel",
+      "grupo": "Panel",
+      "notas": "",
+      "orden": 6
     }
   }
 };

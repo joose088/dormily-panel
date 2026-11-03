@@ -2,7 +2,7 @@
 // El código es la contraseña de una única cuenta de Firebase (CUENTA_EQUIPO); nunca se guarda en el código fuente.
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import { getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, getDoc, writeBatch } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, getDoc, writeBatch, arrayUnion, query, orderBy, limit } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { FIREBASE, CUENTA_EQUIPO, NOMBRES } from './config.js';
 import { SEMILLA } from './semilla.js';
 
@@ -10,34 +10,50 @@ const CLAVE_QUIEN = 'dormily-panel-quien';
 const leerQuien = () => { try { return localStorage.getItem(CLAVE_QUIEN); } catch (e) { return null; } };
 const guardarQuien = (q) => { try { if (q) localStorage.setItem(CLAVE_QUIEN, q); else localStorage.removeItem(CLAVE_QUIEN); } catch (e) {} };
 
-// Same small surface the panel already uses: collection(x).add / doc(id).set|update|delete / onSnapshot.
+const vista = (s) => ({ docs: s.docs.map((d) => Object.assign({ id: d.id }, d.data())) });
+
+// Small surface the panel uses: collection(x).add / ultimos / doc(id).get|set|update|delete / onSnapshot, plus arrayUnion.
 function adaptador(fs) {
   return {
+    arrayUnion: (...valores) => arrayUnion(...valores),
     collection(nombre) {
       const ref = collection(fs, nombre);
       return {
         add: (datos) => addDoc(ref, datos),
         doc(id) {
           const r = doc(fs, nombre, id);
-          return { set: (datos) => setDoc(r, datos), update: (datos) => updateDoc(r, datos), delete: () => deleteDoc(r) };
+          return {
+            get: async () => { const d = await getDoc(r); return d.exists() ? Object.assign({ id: d.id }, d.data()) : null; },
+            set: (datos) => setDoc(r, datos),
+            update: (datos) => updateDoc(r, datos),
+            delete: () => deleteDoc(r)
+          };
         },
-        onSnapshot: (siguiente, error) => onSnapshot(ref,
-          (s) => siguiente({ docs: s.docs.map((d) => Object.assign({ id: d.id }, d.data())) }),
-          (e) => error({ code: e.code }))
+        onSnapshot: (siguiente, error) => onSnapshot(ref, (s) => siguiente(vista(s)), (e) => error({ code: e.code })),
+        ultimos(campo, n) {
+          const q = query(ref, orderBy(campo, 'desc'), limit(n));
+          return { onSnapshot: (siguiente, error) => onSnapshot(q, (s) => siguiente(vista(s)), (e) => error({ code: e.code })) };
+        }
       };
     }
   };
 }
 
-// Loads the starting tasks, events and notes once, the first time someone from the team gets in.
+// Loads each starting collection once. config/inicio remembers which ones are already in.
 async function sembrar(fs) {
   const marca = doc(fs, 'config', 'inicio');
-  if ((await getDoc(marca)).exists()) return;
+  const snap = await getDoc(marca);
+  const hecho = snap.exists() ? Object.assign({}, snap.data()) : {};
+  if (hecho.sembrado) { hecho.tareas = true; hecho.eventos = true; hecho.notas = true; }
+  const faltan = Object.keys(SEMILLA).filter((col) => !hecho[col]);
+  if (!faltan.length) return;
   const lote = writeBatch(fs);
-  for (const [col, docs] of Object.entries(SEMILLA)) {
-    for (const [id, datos] of Object.entries(docs)) lote.set(doc(fs, col, id), datos);
+  const marcas = {};
+  for (const col of faltan) {
+    for (const [id, datos] of Object.entries(SEMILLA[col])) lote.set(doc(fs, col, id), datos);
+    marcas[col] = true;
   }
-  lote.set(marca, { sembrado: new Date().toISOString() });
+  lote.set(marca, marcas, { merge: true });
   await lote.commit();
 }
 
