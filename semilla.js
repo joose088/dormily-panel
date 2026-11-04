@@ -699,5 +699,111 @@ export const SEMILLA = {
       "notas": "",
       "actualizado": "2026-11-03T12:00:00.000Z"
     }
+  },
+  "proveedores@3": {
+    "p01": {
+      "estado": "descartado",
+      "prioridad": "baja",
+      "contacto": "Conrado Padilla Marco (director general): conrado@ecus.es · 617 470 231\nGeneral: hablamos@ecus.es · 968 751 374",
+      "siguientePaso": "Volver a escribir cuando tengamos más volumen",
+      "notas": "Hablamos el 2/11/2026. El 3/11 Conrado respondió que no: fabrican series grandes personalizadas desde el inicio de la producción y no pueden hacer pocas unidades ni unidades sueltas. «Quizás más adelante».",
+      "actualizado": "2026-11-04T12:00:00.000Z"
+    },
+    "p03": {
+      "contacto": "610 970 431",
+      "direccion": "Avda. de la Paz, 241 · Yecla (otra ficha da Ctra. de Almansa, km 1,2)",
+      "condiciones": "Dijeron que no tenían capacidad de producción. Según un directorio, fabrican colchones personalizados con la marca del cliente, viscoelásticos y de muelles ensacados.",
+      "actualizado": "2026-11-04T12:00:00.000Z"
+    },
+    "p23": {
+      "nombre": "Formas Descanso",
+      "tipo": "colchones",
+      "que": "Colchones (Tecno Plus, perfilados) y camas articuladas y geriátricas",
+      "estado": "contactar",
+      "prioridad": "media",
+      "contacto": "968 718 536",
+      "direccion": "C/ Músico Azorín Torregrosa, 24 · Yecla",
+      "web": "https://formasdescanso.com/",
+      "condiciones": "Empresa pequeña que diseña y fabrica sus sistemas de descanso. Su web tiene un área privada, posiblemente para profesionales. No publica correo.",
+      "siguientePaso": "Llamar y preguntar si fabrican con nuestra marca y en pocas unidades",
+      "fechaSiguiente": "",
+      "notas": "Interesante también para camas articuladas (colchón Movimiento de los prototipos).",
+      "actualizado": "2026-11-04T12:00:00.000Z"
+    },
+    "p24": {
+      "nombre": "Colchones y Canapés C.B.",
+      "tipo": "ambos",
+      "que": "Colchones y canapés (comunidad de bienes: probablemente un taller pequeño)",
+      "estado": "contactar",
+      "prioridad": "media",
+      "contacto": "",
+      "direccion": "Avda. de la Paz, 210 · Yecla",
+      "web": "",
+      "condiciones": "Registrada en Yecla con actividad de colchones. No hemos encontrado web ni teléfono.",
+      "siguientePaso": "Pasar en persona o buscar el teléfono",
+      "fechaSiguiente": "",
+      "notas": "",
+      "actualizado": "2026-11-04T12:00:00.000Z"
+    },
+    "p25": {
+      "nombre": "Comodon Descanso",
+      "tipo": "colchones",
+      "que": "Colchones",
+      "estado": "contactar",
+      "prioridad": "baja",
+      "contacto": "",
+      "direccion": "Yecla",
+      "web": "http://www.colchoncomodon.es/",
+      "condiciones": "Registrada como fabricante de colchones en Yecla. Su web no funciona y no hemos encontrado contacto.",
+      "siguientePaso": "Buscar teléfono o preguntar en la zona si sigue activa",
+      "fechaSiguiente": "",
+      "notas": "",
+      "actualizado": "2026-11-04T12:00:00.000Z"
+    },
+    "p26": {
+      "nombre": "Dormissimo",
+      "tipo": "colchones",
+      "que": "Colchones y almohadas",
+      "estado": "contactar",
+      "prioridad": "baja",
+      "contacto": "621 361 103",
+      "direccion": "C/ Las Tejeras, 12 · Yecla",
+      "web": "https://dormissimo.com/es/",
+      "condiciones": "Se presentan como fabricantes. Venden online directamente al público, así que son competencia.",
+      "siguientePaso": "",
+      "fechaSiguiente": "",
+      "notas": "Parece la marca online de Shaula Confort: mismo teléfono y misma calle. Si escribimos a Shaula, no hace falta escribir aquí.",
+      "actualizado": "2026-11-04T12:00:00.000Z"
+    },
+    "p27": {
+      "nombre": "Morfeo",
+      "tipo": "colchones",
+      "que": "Colchones (fabrican cada colchón por encargo)",
+      "estado": "contactar",
+      "prioridad": "baja",
+      "contacto": "Contacto a través de su web",
+      "direccion": "Fábrica propia en Yecla desde 2017",
+      "web": "https://morfeo.com/",
+      "condiciones": "Marca online con fábrica propia en Yecla. Son competencia directa: es poco probable que fabriquen para otra marca.",
+      "siguientePaso": "",
+      "fechaSiguiente": "",
+      "notas": "Útil como referencia: demuestra que en Yecla se puede fabricar colchón a colchón.",
+      "actualizado": "2026-11-04T12:00:00.000Z"
+    },
+    "p28": {
+      "nombre": "My Baby Mattress (grupo Gomarco)",
+      "tipo": "colchones",
+      "que": "Colchones de cuna y bebé",
+      "estado": "contactar",
+      "prioridad": "baja",
+      "contacto": "968 790 090 (Gomarco)",
+      "direccion": "P.I. Box 403, Ctra. Villena, km 3,5 · Yecla",
+      "web": "https://gomarco.com/",
+      "condiciones": "Empresa del grupo Gomarco especializada en colchones de bebé.",
+      "siguientePaso": "",
+      "fechaSiguiente": "",
+      "notas": "Solo si hacemos la línea infantil (prototipo Cuna). Preguntar a la vez que a Gomarco.",
+      "actualizado": "2026-11-04T12:00:00.000Z"
+    }
   }
 };
