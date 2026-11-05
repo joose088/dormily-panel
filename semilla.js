@@ -805,5 +805,42 @@ export const SEMILLA = {
       "notas": "Solo si hacemos la línea infantil (prototipo Cuna). Preguntar a la vez que a Gomarco.",
       "actualizado": "2026-11-04T12:00:00.000Z"
     }
+  },
+  "proveedores@4": {
+    "p13": {
+      "prioridad": "alta",
+      "siguientePaso": "Llamar ya. Recomendado por Conrado Padilla (ECUS) el 4/11/2026: fabricante pequeño, muy barato y hace marca blanca. Bueno para primer precio y espumas.",
+      "actualizado": "2026-11-05T12:00:00.000Z"
+    },
+    "p03": {
+      "estado": "contactar",
+      "prioridad": "alta",
+      "siguientePaso": "Volver a llamar. Recomendado por Conrado Padilla (ECUS) el 4/11/2026 como fabricante pequeño y flexible. Preguntar si ya tienen capacidad para pocas unidades.",
+      "actualizado": "2026-11-05T12:00:00.000Z"
+    },
+    "p09": {
+      "prioridad": "alta",
+      "siguientePaso": "Llamar. Recomendado por Conrado Padilla (ECUS) el 4/11/2026: fabricante de menor tamaño.",
+      "actualizado": "2026-11-05T12:00:00.000Z"
+    },
+    "p04": {
+      "prioridad": "baja",
+      "siguientePaso": "Dejar para más adelante: según Conrado (ECUS) no es el socio ideal para empezar.",
+      "actualizado": "2026-11-05T12:00:00.000Z"
+    },
+    "p07": {
+      "prioridad": "baja",
+      "siguientePaso": "Dejar para más adelante: según Conrado (ECUS) no es el socio ideal para empezar.",
+      "actualizado": "2026-11-05T12:00:00.000Z"
+    },
+    "p16": {
+      "prioridad": "baja",
+      "siguientePaso": "Dejar para más adelante: según Conrado (ECUS) no es el socio ideal para empezar.",
+      "actualizado": "2026-11-05T12:00:00.000Z"
+    },
+    "p01": {
+      "notas": "Hablamos el 2/11/2026. El 3/11 Conrado respondió que no: fabrican series grandes personalizadas y no pueden hacer pocas unidades. El 4/11 nos recomendó fabricantes pequeños: Tressas Confort (enfrente de ECUS, barato, marca blanca), BioDescanso y Vickflex. Se ofrece para dudas sobre el mercado.",
+      "actualizado": "2026-11-05T12:00:00.000Z"
+    }
   }
 };
