@@ -17,7 +17,7 @@ export const SEMILLA = {
       "actualizada": "2026-11-03T12:00:00.000Z",
       "area": "Proveedores",
       "creada": "2026-11-03T12:00:00.000Z",
-      "detalle": "Coste por modelo y medida (90, 135, 150, 160), pedido mínimo o bajo pedido, qué prototipos pueden hacer, muestras, banda/etiqueta/funda Dormily, diseño exclusivo, envío enrollado, firmeza UNE-EN 1957, certificados, garantía y transporte.",
+      "detalle": "Coste por modelo y medida (90, 135, 150, 160), pedido mínimo o bajo pedido, qué prototipos pueden hacer, muestras, banda/etiqueta/funda Landez, diseño exclusivo, envío enrollado, firmeza UNE-EN 1957, certificados, garantía y transporte.",
       "estado": "pendiente",
       "fecha": "",
       "prioridad": "normal",
@@ -55,7 +55,7 @@ export const SEMILLA = {
       "fecha": "",
       "prioridad": "alta",
       "responsable": "todos",
-      "titulo": "Comprobar «Dormily» frente a «Dormity» en la OEPM y la EUIPO"
+      "titulo": "Comprobar «Landez» en la OEPM y la EUIPO (clases 20 y 35)"
     },
     "t06": {
       "actualizada": "2026-11-03T12:00:00.000Z",
@@ -99,7 +99,7 @@ export const SEMILLA = {
       "fecha": "",
       "prioridad": "normal",
       "responsable": "todos",
-      "titulo": "Publicar el tema «Dormily · Test sin modelos»"
+      "titulo": "Publicar el tema «Landez · marca nueva»"
     },
     "t10": {
       "actualizada": "2026-11-03T12:00:00.000Z",
@@ -205,7 +205,7 @@ export const SEMILLA = {
       "autor": "todos",
       "fecha": "2026-11-03T12:00:00.000Z",
       "fijada": true,
-      "texto": "Colchones: ECUS (Ecus Sleep, grupo Senttix). No venden sus colchones online, así que nos los fabricarían en marca blanca, con marca Dormily. Pendiente de presupuesto (hablamos el 2 de noviembre).\n\nCanapés: Azorín Descanso. Solo nos ofrecen canapés, a 0,37 €/punto −6 % (IVA incluido), con PVP mínimo. Pendiente darles respuesta.",
+      "texto": "Colchones: ECUS (Ecus Sleep, grupo Senttix). No venden sus colchones online, así que nos los fabricarían en marca blanca, con marca Landez. Pendiente de presupuesto (hablamos el 2 de noviembre).\n\nCanapés: Azorín Descanso. Solo nos ofrecen canapés, a 0,37 €/punto −6 % (IVA incluido), con PVP mínimo. Pendiente darles respuesta.",
       "titulo": "Proveedores: dónde estamos"
     },
     "n02": {
@@ -219,10 +219,10 @@ export const SEMILLA = {
   "proveedores": {
     "p01": {
       "nombre": "ECUS (Ecus Sleep)",
-      "que": "Colchones en marca blanca Dormily",
+      "que": "Colchones en marca blanca Landez",
       "estado": "esperando",
       "contacto": "hablamos@ecus.es\n968 751 374",
-      "condiciones": "No venden sus colchones online: nos los fabricarían en marca blanca, con marca Dormily. El precio de venta lo ponemos nosotros.",
+      "condiciones": "No venden sus colchones online: nos los fabricarían en marca blanca, con marca Landez. El precio de venta lo ponemos nosotros.",
       "siguientePaso": "Recibir el presupuesto y pedir muestras",
       "fechaSiguiente": "",
       "notas": "Hablamos el 2 de noviembre de 2026.",
@@ -344,8 +344,8 @@ export const SEMILLA = {
   },
   "enlaces": {
     "l01": {
-      "titulo": "Tienda dormily.es",
-      "url": "https://dormily.es",
+      "titulo": "Tienda landezdescanso.es",
+      "url": "https://landezdescanso.es",
       "grupo": "Tienda",
       "notas": "",
       "orden": 0
@@ -603,7 +603,7 @@ export const SEMILLA = {
       "contacto": "Formulario: karibiandescanso.com/en/contacto",
       "direccion": "Avda. de Pinoso · Yecla",
       "web": "https://karibiandescanso.com/en/contacto/",
-      "condiciones": "Su web dice que no permite vender su marca online: preguntar solo por fabricación con marca Dormily.",
+      "condiciones": "Su web dice que no permite vender su marca online: preguntar solo por fabricación con marca Landez.",
       "siguientePaso": "",
       "fechaSiguiente": "",
       "notas": "",
@@ -844,3 +844,16 @@ export const SEMILLA = {
     }
   }
 };
+
+// Textos de la marca antigua que ya estaban cargados en la base de datos: [colección, id, campo, antes, después].
+export const CAMBIOS_LANDEZ = [
+  ['tareas', 't02', 'detalle', 'Dormily', 'Landez'],
+  ['tareas', 't05', 'titulo', 'Comprobar «Dormily» frente a «Dormity» en la OEPM y la EUIPO', 'Comprobar «Landez» en la OEPM y la EUIPO (clases 20 y 35)'],
+  ['tareas', 't09', 'titulo', 'Publicar el tema «Dormily · Test sin modelos»', 'Publicar el tema «Landez · marca nueva»'],
+  ['notas', 'n01', 'texto', 'Dormily', 'Landez'],
+  ['proveedores', 'p01', 'que', 'Dormily', 'Landez'],
+  ['proveedores', 'p01', 'condiciones', 'Dormily', 'Landez'],
+  ['proveedores', 'p16', 'condiciones', 'Dormily', 'Landez'],
+  ['enlaces', 'l01', 'titulo', 'dormily.es', 'landezdescanso.es'],
+  ['enlaces', 'l01', 'url', 'https://dormily.es', 'https://landezdescanso.es'],
+];

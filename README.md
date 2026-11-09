@@ -1,4 +1,4 @@
-# Dormily · Panel del equipo
+# Landez · Panel del equipo
 
 Web con tareas, calendario y notas para José Carlos, Alejandro y Hugo: https://dormily-panel.vercel.app
 

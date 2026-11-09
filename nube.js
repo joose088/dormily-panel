@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, getDoc, writeBatch, arrayUnion, query, orderBy, limit } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { FIREBASE, CUENTA_EQUIPO, NOMBRES } from './config.js';
-import { SEMILLA } from './semilla.js';
+import { SEMILLA, CAMBIOS_LANDEZ } from './semilla.js';
 
 const CLAVE_QUIEN = 'dormily-panel-quien';
 const leerQuien = () => { try { return localStorage.getItem(CLAVE_QUIEN); } catch (e) { return null; } };
@@ -58,6 +58,22 @@ async function sembrar(fs) {
   }
 }
 
+// One-off rename of the seeded texts. It only touches a field that still has the old wording, so the team's own edits stay.
+async function pasarALandez(fs) {
+  const marca = doc(fs, 'config', 'inicio');
+  const snap = await getDoc(marca);
+  if (snap.exists() && snap.data().landez) return;
+  const lote = writeBatch(fs);
+  for (const [col, id, campo, antes, despues] of CAMBIOS_LANDEZ) {
+    const ref = doc(fs, col, id);
+    const d = await getDoc(ref);
+    const valor = d.exists() ? d.data()[campo] : null;
+    if (typeof valor === 'string' && valor.includes(antes)) lote.update(ref, { [campo]: valor.split(antes).join(despues) });
+  }
+  lote.set(marca, { landez: true }, { merge: true });
+  await lote.commit();
+}
+
 const MENSAJES = {
   'auth/invalid-credential': 'Código incorrecto.',
   'auth/invalid-login-credentials': 'Código incorrecto.',
@@ -90,7 +106,7 @@ export function iniciar({ alEntrar, alSalir, alError }) {
   async function entrar() {
     if (dentro) return;
     dentro = true;
-    try { await sembrar(fs); } catch (e) { /* Offline or no access: the listeners report it. */ }
+    try { await sembrar(fs); await pasarALandez(fs); } catch (e) { /* Offline or no access: the listeners report it. */ }
     alEntrar({ nombre: NOMBRES[quien], persona: quien }, adaptador(fs));
   }
 

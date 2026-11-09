@@ -7,7 +7,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icono.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icono-180.png">
-<title>Panel Dormily</title>
+<title>Panel Landez</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap">
@@ -55,8 +55,9 @@
   .banda { background: var(--band); color: var(--band-ink); }
   .banda .envoltorio { padding-block: 22px 18px; display: grid; gap: 18px; }
   .banda__top { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
-  .marca { font-family: var(--f-display); font-weight: 700; font-size: 22px; letter-spacing: -.02em; margin: 0; }
-  .marca span { color: var(--rosa-band); }
+  .marca { display: inline-flex; align-items: baseline; gap: 10px; font-family: var(--f-display); font-weight: 700; font-size: 15px; letter-spacing: -.02em; margin: 0; }
+  .marca img { height: 26px; width: auto; display: block; }
+  .marca span { color: var(--band-muted); }
   .hoy { color: var(--band-muted); font-size: 14px; }
   .estado-con { margin-left: auto; font-size: 13px; color: var(--band-muted); display: inline-flex; align-items: center; gap: 6px; }
   .estado-con i { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); display: inline-block; }
@@ -205,8 +206,9 @@
   .usuario button { border: 1px solid rgba(255,246,236,.25); background: transparent; color: var(--band-ink); border-radius: 999px; padding: 4px 10px; font-size: 12.5px; font-weight: 700; }
   .entrada { min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; background: var(--band); color: var(--band-ink); padding: 24px max(16px, env(safe-area-inset-left, 0px)); }
   .entrada__caja { width: min(380px, 100%); text-align: center; display: grid; gap: 18px; }
-  .entrada h1 { font-family: var(--f-display); font-size: 30px; margin: 0; letter-spacing: -.02em; }
-  .entrada h1 span { color: var(--rosa-band); }
+  .entrada h1 { display: flex; justify-content: center; align-items: baseline; gap: 12px; font-family: var(--f-display); font-size: 20px; margin: 0; letter-spacing: -.02em; }
+  .entrada h1 img { height: 44px; width: auto; display: block; }
+  .entrada h1 span { color: var(--band-muted); }
   .entrada p { margin: 0; color: var(--band-muted); }
   .pregunta { font-family: var(--f-display); font-size: 17px; color: var(--band-ink) !important; }
   .nombres { display: grid; gap: 10px; }
@@ -334,7 +336,7 @@
 <body>
 <div class="entrada" id="entrada">
   <div class="entrada__caja">
-    <h1>dormily<span>.</span> equipo</h1>
+    <h1><img src="logo-landez.svg" alt="Landez" width="199" height="44"><span>equipo</span></h1>
     <p class="pregunta" id="entrada-pregunta">¿Quién eres?</p>
     <div class="nombres" id="nombres">
       <button type="button" class="nombre" data-quien="jc"><span class="ini" style="background:#2F3BFF">JC</span>José Carlos</button>
@@ -357,7 +359,7 @@
 <header class="banda">
   <div class="envoltorio">
     <div class="banda__top">
-      <h1 class="marca">dormily<span>.</span> equipo</h1>
+      <h1 class="marca"><img src="logo-landez.svg" alt="Landez" width="118" height="26"><span>equipo</span></h1>
       <span class="hoy" id="hoy"></span>
       <span class="usuario" id="usuario" hidden><span id="usuario-nombre"></span><button type="button" id="salir">Salir</button></span>
       <span class="estado-con" id="conexion"><i></i><span>Conectando…</span></span>
@@ -809,7 +811,7 @@ function exportarCSV() {
   const csv = '﻿' + [cab].concat(filas).map((f) => f.map((v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"').join(';')).join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-  a.download = 'dormily-contabilidad-' + S.periodo + '-' + hoyIso() + '.csv';
+  a.download = 'landez-contabilidad-' + S.periodo + '-' + hoyIso() + '.csv';
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 }
@@ -1004,7 +1006,7 @@ function formTarea(t) {
   ];
   const extra = '<div class="campo ancho"><span class="lbl">Pasos</span><ul class="pasos" id="pasos"></ul>' +
     (S.escribir ? '<div class="paso-nuevo"><input id="paso-txt" maxlength="160" placeholder="Añadir un paso" aria-label="Nuevo paso"><button type="button" class="btn" id="paso-add">Añadir</button></div>' : '') + '</div>' +
-    (t.fecha ? '<div class="campo ancho"><a class="gcal" href="' + esc(gcalUrl({ titulo: 'Dormily: ' + t.titulo, fecha: t.fecha, detalles: t.detalle })) + '" target="_blank" rel="noopener">Añadir la fecha límite a Google Calendar</a></div>' : '') +
+    (t.fecha ? '<div class="campo ancho"><a class="gcal" href="' + esc(gcalUrl({ titulo: 'Landez: ' + t.titulo, fecha: t.fecha, detalles: t.detalle })) + '" target="_blank" rel="noopener">Añadir la fecha límite a Google Calendar</a></div>' : '') +
     (nueva ? '' : '<div class="campo ancho"><span class="lbl">Comentarios</span><div class="comentarios" id="comentarios"></div>' +
       (S.escribir ? '<div class="comentar"><textarea id="com-txt" maxlength="2000" placeholder="Escribe un comentario" aria-label="Nuevo comentario"></textarea><button type="button" class="btn" id="com-add">Comentar</button></div>' : '') + '</div>') +
     (t.creadaPor ? '<div class="campo ancho nota-pie" style="font-size:12.5px;color:var(--muted)">Creada por ' + esc(nombre(t.creadaPor)) + (t.hechaPor ? ' · hecha por ' + esc(nombre(t.hechaPor)) : '') + '</div>' : '');
