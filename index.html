@@ -984,7 +984,9 @@ const tileEst = (n, v, nota) => '<div class="saldo"><span class="est-n">' + n + 
 const avisoParte = (txt, err) => '<div class="est-aviso"><b>' + txt + '</b> ' + esc(err) + '</div>';
 function bloqueMeta(me) {
   let h = '<h3 class="grupo-titulo" style="margin-top:28px">Instagram, Facebook y píxel de Meta</h3>';
-  if (!me || !me.configurado) return h + '<div class="est-aviso"><b>Meta sin conectar.</b> Falta la clave <code>META_TOKEN</code> en Cloudflare (ver README).</div>';
+  if (!me || !me.configurado) return h + '<p class="est-pie" style="margin:8px 0 0">Estas cifras se miran en Meta: ' +
+    '<a href="https://business.facebook.com/latest/insights?business_id=1048814831506388" target="_blank" rel="noopener">estadísticas de Instagram y Facebook</a> · ' +
+    '<a href="https://business.facebook.com/events_manager2/list/dataset/3314865168719686/overview?business_id=1048814831506388" target="_blank" rel="noopener">lo que recibe el píxel</a>.</p>';
   if (me.error) return h + avisoParte('Meta no responde:', me.error);
   const ig = me.instagram || {}, fb = me.facebook || {}, px = me.pixel || {};
   const alcance = ig.alcancePorDia ? Object.values(ig.alcancePorDia).reduce((s, v) => s + v, 0) : null;
