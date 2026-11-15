@@ -1,7 +1,8 @@
 // Cloudflare Pages Function: GET /api/estadisticas?dias=30
 // Returns store sales (Shopify) and site visits (Google Analytics) for the panel's «Estadísticas» tab.
 // Only answers to the team account signed in with Firebase. Secrets live in the Cloudflare project settings:
-//   SHOPIFY_TOKEN  Admin API token of the store's read-only custom app
+//   SHOPIFY_CLIENT_ID + SHOPIFY_CLIENT_SECRET  credentials of the read-only Dev Dashboard app installed on the store
+//                  (exchanged for a 24-hour token with the client credentials grant); SHOPIFY_TOKEN still works instead
 //   GA_CLAVE_JSON  full JSON key of the Google Cloud service account that can read the Analytics property
 // Plain settings (with defaults): FIREBASE_PROYECTO, CUENTA_EQUIPO, SHOPIFY_TIENDA, SHOPIFY_VERSION, GA_PROPIEDAD.
 
@@ -66,8 +67,24 @@ const CONSULTA_PEDIDOS = `query Pedidos($q: String!, $c: String) {
   }
 }`;
 
+// Dev Dashboard apps get a 24-hour token from their client ID and secret; it is reused while this worker stays warm.
+let tokenShopify = { valor: null, caduca: 0 };
+async function accesoShopify(env, a) {
+  if (env.SHOPIFY_TOKEN) return env.SHOPIFY_TOKEN;
+  if (tokenShopify.valor && Date.now() < tokenShopify.caduca) return tokenShopify.valor;
+  const r = await fetch('https://' + a.tienda + '/admin/oauth/access_token', {
+    method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'client_credentials', client_id: env.SHOPIFY_CLIENT_ID, client_secret: env.SHOPIFY_CLIENT_SECRET })
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok || !d.access_token) throw new Error('Shopify no dio acceso (' + r.status + (d.error_description || d.error ? ': ' + (d.error_description || d.error) : '') + ')');
+  tokenShopify = { valor: d.access_token, caduca: Date.now() + Math.max(60, (d.expires_in || 86399) - 300) * 1000 };
+  return tokenShopify.valor;
+}
+
 async function datosShopify(env, a, dias) {
-  if (!env.SHOPIFY_TOKEN) return { configurado: false };
+  if (!env.SHOPIFY_TOKEN && !(env.SHOPIFY_CLIENT_ID && env.SHOPIFY_CLIENT_SECRET)) return { configurado: false };
+  const acceso = await accesoShopify(env, a);
   const fechas = diasAtras(dias);
   const porDia = Object.fromEntries(fechas.map((f) => [f, { ventas: 0, pedidos: 0 }]));
   const productos = {};
@@ -75,7 +92,7 @@ async function datosShopify(env, a, dias) {
   for (let pagina = 0; pagina < 20; pagina++) {
     const r = await fetch('https://' + a.tienda + '/admin/api/' + a.version + '/graphql.json', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', 'X-Shopify-Access-Token': env.SHOPIFY_TOKEN },
+      headers: { 'content-type': 'application/json', 'X-Shopify-Access-Token': acceso },
       body: JSON.stringify({ query: CONSULTA_PEDIDOS, variables: { q: 'created_at:>=' + fechas[0], c: cursor } })
     });
     const d = await r.json().catch(() => ({}));

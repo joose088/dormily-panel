@@ -48,12 +48,16 @@ La pestaña «Estadísticas» pide los datos a `functions/api/estadisticas.js`, 
 1. Crea una cuenta gratuita en https://dash.cloudflare.com/sign-up con `contacto@landezdescanso.es`. No pide tarjeta.
 2. **Workers y Pages → Crear → Pages → Conectar con Git →** autoriza GitHub y elige el repositorio `dormily-panel`.
 3. Ajustes de compilación: **Ajuste predefinido: Ninguno**, **Comando de compilación: vacío**, **Directorio de salida: `/`**. Pulsa **Guardar e implementar**.
-4. Queda en una dirección `https://<nombre>.pages.dev`. Si Firebase no deja entrar desde ella, añade ese dominio en **Firebase → Authentication → Configuración → Dominios autorizados**.
+4. Queda en https://landez-panel.pages.dev. Si Firebase no deja entrar desde ella, añade ese dominio en **Firebase → Authentication → Configuración → Dominios autorizados**.
 
-### 2. Clave de Shopify (`SHOPIFY_TOKEN`)
-1. Shopify → **Configuración → Apps → Desarrollar apps → Crear una app**, con el nombre «Panel Landez».
-2. **Configurar los permisos de la API de Admin**: marca solo `read_orders` y `read_products`.
-3. **Instalar app** y copia el **token de acceso de la API de Admin**. Solo se enseña una vez.
+### 2. Claves de Shopify (`SHOPIFY_CLIENT_ID` y `SHOPIFY_CLIENT_SECRET`)
+Shopify ya no deja crear «apps personalizadas» desde la tienda; se hacen en el Dev Dashboard.
+1. https://dev.shopify.com/dashboard → **Apps → Crear app**, con el nombre «Panel Landez».
+2. En la versión de la app, en **Permisos (scopes)**, pon solo `read_orders` y `read_products`, y publica la versión.
+3. **Instalar** la app en la tienda Landez Descanso.
+4. En **Configuración** de la app copia el **ID de cliente** y el **secreto de cliente**. La función los cambia sola por un token que dura 24 horas.
+
+Si algún día tenéis un token fijo de una app antigua, también vale: ponlo como `SHOPIFY_TOKEN`.
 
 ### 3. Clave de Google Analytics (`GA_CLAVE_JSON`)
 1. https://console.cloud.google.com con la cuenta `contacto@landezdescanso.es` → crea un proyecto «Panel Landez». No hace falta activar la facturación.
@@ -66,7 +70,8 @@ La pestaña «Estadísticas» pide los datos a `functions/api/estadisticas.js`, 
 En el proyecto de Pages: **Configuración → Variables y secretos → Agregar**, tipo **Secreto**, en **Producción**:
 | Nombre | Valor |
 |---|---|
-| `SHOPIFY_TOKEN` | El token de Shopify |
+| `SHOPIFY_CLIENT_ID` | El ID de cliente de la app de Shopify |
+| `SHOPIFY_CLIENT_SECRET` | El secreto de cliente de la app de Shopify |
 | `GA_CLAVE_JSON` | Todo el contenido del archivo `.json` de Google, tal cual |
 
 Después **Implementaciones → Volver a implementar** la última. Borra el `.json` de tu ordenador cuando esté pegado. Ni las claves ni el archivo van nunca a GitHub.

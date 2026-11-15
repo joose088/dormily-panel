@@ -986,7 +986,7 @@ function renderEstadisticas() {
 
   const d = E.datos, sh = d.shopify, ga = d.analytics;
   const okSh = sh.configurado && !sh.error, okGa = ga.configurado && !ga.error;
-  html += avisoFuente('Shopify', sh, 'SHOPIFY_TOKEN') + avisoFuente('Google Analytics', ga, 'GA_CLAVE_JSON');
+  html += avisoFuente('Shopify', sh, 'SHOPIFY_CLIENT_ID y SHOPIFY_CLIENT_SECRET') + avisoFuente('Google Analytics', ga, 'GA_CLAVE_JSON');
   const tile = (n, v, nota) => '<div class="saldo"><span class="est-n">' + n + '</span><span class="neto">' + v + '</span>' + (nota ? '<span class="est-nota">' + nota + '</span>' : '') + '</div>';
   const conv = okSh && okGa && ga.sesiones ? sh.pedidos / ga.sesiones : null;
   html += '<div class="est-kpis">' +
