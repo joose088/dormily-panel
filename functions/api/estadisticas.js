@@ -4,7 +4,9 @@
 //   SHOPIFY_CLIENT_ID + SHOPIFY_CLIENT_SECRET  credentials of the read-only Dev Dashboard app installed on the store
 //                  (exchanged for a 24-hour token with the client credentials grant); SHOPIFY_TOKEN still works instead
 //   GA_CLAVE_JSON  full JSON key of the Google Cloud service account that can read the Analytics property
-// Plain settings (with defaults): FIREBASE_PROYECTO, CUENTA_EQUIPO, SHOPIFY_TIENDA, SHOPIFY_VERSION, GA_PROPIEDAD.
+//   META_TOKEN     system-user token of the Landez Descanso portfolio (page, Instagram and pixel read access)
+// Plain settings (with defaults): FIREBASE_PROYECTO, CUENTA_EQUIPO, SHOPIFY_TIENDA, SHOPIFY_VERSION, GA_PROPIEDAD,
+// META_VERSION, META_PAGINA, META_IG, META_DATASET.
 
 const ZONA = 'Europe/Madrid';
 const CACHE_SEGUNDOS = 600;
@@ -14,8 +16,12 @@ const ajustes = (env) => ({
   proyecto: env.FIREBASE_PROYECTO || 'dormily-panel',
   cuenta: env.CUENTA_EQUIPO || 'panel@dormily.es',
   tienda: env.SHOPIFY_TIENDA || 'de800h-ms.myshopify.com',
-  version: env.SHOPIFY_VERSION || '2026-07',
-  propiedad: env.GA_PROPIEDAD || '564410947'
+  version: env.SHOPIFY_VERSION || '2026-10',
+  propiedad: env.GA_PROPIEDAD || '564410947',
+  metaVersion: env.META_VERSION || 'v23.0',
+  metaPagina: env.META_PAGINA || '1412410575299118',
+  metaIg: env.META_IG || '',
+  metaDataset: env.META_DATASET || '3314865168719686'
 });
 
 const json = (datos, estado = 200, extra = {}) =>
@@ -82,22 +88,74 @@ async function accesoShopify(env, a) {
   return tokenShopify.valor;
 }
 
+async function gqlShopify(a, acceso, query, variables) {
+  const r = await fetch('https://' + a.tienda + '/admin/api/' + a.version + '/graphql.json', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'X-Shopify-Access-Token': acceso },
+    body: JSON.stringify({ query, variables })
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok || d.errors) throw new Error('Shopify respondió ' + r.status + (d.errors ? ': ' + JSON.stringify(d.errors).slice(0, 200) : ''));
+  return d.data;
+}
+
+// ShopifyQL rows come back as objects keyed by column name or as plain arrays, depending on the API version.
+async function shopifyQL(a, acceso, consulta) {
+  const d = await gqlShopify(a, acceso, 'query Informe($q: String!) { shopifyqlQuery(query: $q) { parseErrors tableData { columns { name } rows } } }', { q: consulta });
+  const res = d.shopifyqlQuery;
+  if (res.parseErrors && res.parseErrors.length) throw new Error('ShopifyQL: ' + res.parseErrors.join('; '));
+  const columnas = (res.tableData.columns || []).map((c) => c.name);
+  return (res.tableData.rows || []).map((fila) => (Array.isArray(fila) ? Object.fromEntries(columnas.map((c, i) => [c, fila[i]])) : fila));
+}
+
+// Store visits as Shopify counts them (every human session, cookies or not) and the store's own funnel.
+async function sesionesShopify(a, acceso, dias) {
+  const periodo = ' SINCE -' + (dias - 1) + 'd UNTIL today';
+  const humanos = " WHERE human_or_bot_session = 'human'";
+  const [porDiaFilas, fuentesFilas] = await Promise.all([
+    shopifyQL(a, acceso, 'FROM sessions SHOW sessions, online_store_visitors, sessions_with_cart_additions, sessions_that_reached_checkout, sessions_that_completed_checkout' + humanos + ' TIMESERIES day' + periodo + ' ORDER BY day ASC'),
+    shopifyQL(a, acceso, 'FROM sessions SHOW sessions' + humanos + ' GROUP BY referrer_source' + periodo + ' ORDER BY sessions DESC LIMIT 8')
+  ]);
+  const fechas = diasAtras(dias);
+  const porDia = Object.fromEntries(fechas.map((f) => [f, 0]));
+  const tot = { sesiones: 0, visitantes: 0, conCarrito: 0, alPago: 0, compradas: 0 };
+  for (const f of porDiaFilas) {
+    const dia = String(f.day || '').slice(0, 10);
+    const n = Number(f.sessions) || 0;
+    if (dia in porDia) porDia[dia] = n;
+    tot.sesiones += n;
+    tot.visitantes += Number(f.online_store_visitors) || 0;
+    tot.conCarrito += Number(f.sessions_with_cart_additions) || 0;
+    tot.alPago += Number(f.sessions_that_reached_checkout) || 0;
+    tot.compradas += Number(f.sessions_that_completed_checkout) || 0;
+  }
+  return Object.assign(tot, { porDia, fuentes: fuentesFilas.map((f) => ({ nombre: f.referrer_source || 'Desconocido', sesiones: Number(f.sessions) || 0 })).filter((f) => f.sesiones) });
+}
+
+// Checkouts where the customer left contact details but never paid.
+async function abandonadosShopify(a, acceso, desde) {
+  const d = await gqlShopify(a, acceso, `query Abandonados($q: String!) {
+    abandonedCheckouts(first: 250, query: $q, sortKey: CREATED_AT, reverse: true) {
+      nodes { completedAt totalPriceSet { shopMoney { amount } } }
+    }
+  }`, { q: 'created_at:>=' + desde });
+  const abiertos = d.abandonedCheckouts.nodes.filter((c) => !c.completedAt);
+  return { numero: abiertos.length, valor: abiertos.reduce((s, c) => s + (Number(c.totalPriceSet.shopMoney.amount) || 0), 0) };
+}
+
+const parteSegura = (promesa) => promesa.catch((e) => ({ error: e.message || String(e) }));
+
 async function datosShopify(env, a, dias) {
   if (!env.SHOPIFY_TOKEN && !(env.SHOPIFY_CLIENT_ID && env.SHOPIFY_CLIENT_SECRET)) return { configurado: false };
   const acceso = await accesoShopify(env, a);
   const fechas = diasAtras(dias);
+  const extras = Promise.all([parteSegura(sesionesShopify(a, acceso, dias)), parteSegura(abandonadosShopify(a, acceso, fechas[0]))]);
   const porDia = Object.fromEntries(fechas.map((f) => [f, { ventas: 0, pedidos: 0 }]));
   const productos = {};
   let ventas = 0, pedidos = 0, moneda = 'EUR', cursor = null;
   for (let pagina = 0; pagina < 20; pagina++) {
-    const r = await fetch('https://' + a.tienda + '/admin/api/' + a.version + '/graphql.json', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'X-Shopify-Access-Token': acceso },
-      body: JSON.stringify({ query: CONSULTA_PEDIDOS, variables: { q: 'created_at:>=' + fechas[0], c: cursor } })
-    });
-    const d = await r.json().catch(() => ({}));
-    if (!r.ok || d.errors) throw new Error('Shopify respondió ' + r.status + (d.errors ? ': ' + JSON.stringify(d.errors).slice(0, 160) : ''));
-    for (const o of d.data.orders.nodes) {
+    const d = await gqlShopify(a, acceso, CONSULTA_PEDIDOS, { q: 'created_at:>=' + fechas[0], c: cursor });
+    for (const o of d.orders.nodes) {
       if (o.test || o.cancelledAt) continue;
       const dia = fechaMadrid(new Date(o.createdAt));
       if (!porDia[dia]) continue;
@@ -107,11 +165,12 @@ async function datosShopify(env, a, dias) {
       porDia[dia].ventas += importe; porDia[dia].pedidos += 1;
       for (const l of o.lineItems.nodes) productos[l.title] = (productos[l.title] || 0) + (l.quantity || 0);
     }
-    if (!d.data.orders.pageInfo.hasNextPage) break;
-    cursor = d.data.orders.pageInfo.endCursor;
+    if (!d.orders.pageInfo.hasNextPage) break;
+    cursor = d.orders.pageInfo.endCursor;
   }
+  const [sesiones, abandonados] = await extras;
   return {
-    configurado: true, moneda, ventas, pedidos, ticket: pedidos ? ventas / pedidos : 0, porDia,
+    configurado: true, moneda, ventas, pedidos, ticket: pedidos ? ventas / pedidos : 0, porDia, sesiones, abandonados,
     productos: Object.entries(productos).sort((x, y) => y[1] - x[1]).slice(0, 8).map(([titulo, unidades]) => ({ titulo, unidades }))
   };
 }
@@ -181,6 +240,55 @@ async function datosAnalytics(env, a, dias) {
   };
 }
 
+/* ---------- Meta (Instagram, Facebook and the pixel) ---------- */
+async function graphMeta(env, a, ruta, params = {}) {
+  const u = new URL('https://graph.facebook.com/' + a.metaVersion + '/' + ruta);
+  for (const [k, v] of Object.entries(params)) u.searchParams.set(k, v);
+  u.searchParams.set('access_token', env.META_TOKEN);
+  const r = await fetch(u);
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok || d.error) throw new Error('Meta: ' + ((d.error && d.error.message) || 'respondió ' + r.status));
+  return d;
+}
+
+// Instagram reach per day; Meta only allows 30-day windows, so longer periods are asked in pieces.
+async function alcanceInstagram(env, a, ig, dias) {
+  const fechas = diasAtras(dias);
+  const porDia = Object.fromEntries(fechas.map((f) => [f, 0]));
+  const fin = Math.floor(Date.now() / 1000);
+  for (let hecho = 0; hecho < dias; hecho += 30) {
+    const hasta = fin - hecho * 86400, desde = hasta - Math.min(30, dias - hecho) * 86400;
+    const d = await graphMeta(env, a, ig + '/insights', { metric: 'reach', period: 'day', since: String(desde), until: String(hasta) });
+    for (const v of ((d.data || [])[0] || {}).values || []) {
+      const dia = fechaMadrid(new Date(new Date(v.end_time).getTime() - 3600 * 1000));
+      if (dia in porDia) porDia[dia] = Number(v.value) || 0;
+    }
+  }
+  return porDia;
+}
+
+async function datosMeta(env, a, dias) {
+  if (!env.META_TOKEN) return { configurado: false };
+  const pagina = await parteSegura(graphMeta(env, a, a.metaPagina, { fields: 'name,followers_count,fan_count,instagram_business_account' }));
+  const igId = a.metaIg || (pagina.instagram_business_account && pagina.instagram_business_account.id);
+  const inicio = Math.floor(new Date(diasAtras(dias)[0] + 'T00:00:00Z').getTime() / 1000) - 3600;
+  const [perfil, alcance, pixel] = await Promise.all([
+    igId ? parteSegura(graphMeta(env, a, igId, { fields: 'username,followers_count,media_count' })) : Promise.resolve({ error: 'No se encuentra la cuenta de Instagram unida a la página' }),
+    igId ? parteSegura(alcanceInstagram(env, a, igId, dias)) : Promise.resolve({ error: 'Sin cuenta de Instagram' }),
+    parteSegura(graphMeta(env, a, a.metaDataset + '/stats', { aggregation: 'event', start_time: String(inicio), end_time: String(Math.floor(Date.now() / 1000)) }).then((d) => {
+      const eventos = {};
+      for (const tramo of d.data || []) for (const e of tramo.data || []) eventos[e.value] = (eventos[e.value] || 0) + (Number(e.count) || 0);
+      return eventos;
+    }))
+  ]);
+  return {
+    configurado: true,
+    facebook: pagina.error ? { error: pagina.error } : { nombre: pagina.name, seguidores: pagina.followers_count ?? pagina.fan_count ?? 0 },
+    instagram: perfil.error ? { error: perfil.error } : { usuario: perfil.username, seguidores: perfil.followers_count || 0, publicaciones: perfil.media_count || 0, alcancePorDia: alcance.error ? null : alcance, errorAlcance: alcance.error || null },
+    pixel: pixel.error ? { error: pixel.error } : { eventos: pixel }
+  };
+}
+
 const seguro = (promesa) => promesa.catch((e) => ({ configurado: true, error: e.message || String(e) }));
 
 export async function onRequestGet({ request, env, waitUntil }) {
@@ -197,8 +305,8 @@ export async function onRequestGet({ request, env, waitUntil }) {
     if (guardado) return json(await guardado.json());
   }
 
-  const [shopify, analytics] = await Promise.all([seguro(datosShopify(env, a, dias)), seguro(datosAnalytics(env, a, dias))]);
-  const respuesta = { generado: new Date().toISOString(), dias, zona: ZONA, shopify, analytics };
+  const [shopify, analytics, meta] = await Promise.all([seguro(datosShopify(env, a, dias)), seguro(datosAnalytics(env, a, dias)), seguro(datosMeta(env, a, dias))]);
+  const respuesta = { generado: new Date().toISOString(), dias, zona: ZONA, shopify, analytics, meta };
   waitUntil(cache.put(claveCache, new Response(JSON.stringify(respuesta), { headers: { 'cache-control': 'max-age=' + CACHE_SEGUNDOS } })));
   return json(respuesta);
 }

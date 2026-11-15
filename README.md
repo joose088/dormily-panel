@@ -53,7 +53,7 @@ La pestaña «Estadísticas» pide los datos a `functions/api/estadisticas.js`, 
 ### 2. Claves de Shopify (`SHOPIFY_CLIENT_ID` y `SHOPIFY_CLIENT_SECRET`)
 Shopify ya no deja crear «apps personalizadas» desde la tienda; se hacen en el Dev Dashboard.
 1. https://dev.shopify.com/dashboard → **Apps → Crear app**, con el nombre «Panel Landez».
-2. En la versión de la app, en **Permisos (scopes)**, pon solo `read_orders` y `read_products`, y publica la versión.
+2. En la versión de la app, en **Permisos (scopes)**, pon `read_orders`, `read_products` y `read_reports`, y publica la versión. `read_reports` da las visitas, el embudo y las fuentes que cuenta Shopify; sin él, la pestaña muestra las de Analytics.
 3. **Instalar** la app en la tienda Landez Descanso.
 4. En **Configuración** de la app copia el **ID de cliente** y el **secreto de cliente**. La función los cambia sola por un token que dura 24 horas.
 
@@ -66,6 +66,9 @@ Si algún día tenéis un token fijo de una app antigua, también vale: ponlo co
 4. En la cuenta creada: **Claves → Agregar clave → Crear clave nueva → JSON**. Se descarga un archivo `.json`.
 5. En Google Analytics: **Administrar → Gestión de acceso a la propiedad → + → Añadir usuarios →** el correo de la cuenta de servicio (termina en `iam.gserviceaccount.com`), rol **Lector**, sin notificar.
 
+### 3 bis. Token de Meta (`META_TOKEN`, opcional)
+Para seguidores y alcance de Instagram, seguidores de Facebook y lo que recibe el píxel. Hace falta un «usuario del sistema» del portfolio Landez Descanso con acceso a la página, a Instagram y al conjunto de datos, y un token suyo con los permisos `pages_read_engagement`, `read_insights`, `instagram_basic`, `instagram_manage_insights` y `business_management`. Sin él, la pestaña avisa de que Meta está sin conectar y el resto funciona igual.
+
 ### 4. Pegar las claves en Cloudflare
 En el proyecto de Pages: **Configuración → Variables y secretos → Agregar**, tipo **Secreto**, en **Producción**:
 | Nombre | Valor |
@@ -73,15 +76,16 @@ En el proyecto de Pages: **Configuración → Variables y secretos → Agregar**
 | `SHOPIFY_CLIENT_ID` | El ID de cliente de la app de Shopify |
 | `SHOPIFY_CLIENT_SECRET` | El secreto de cliente de la app de Shopify |
 | `GA_CLAVE_JSON` | Todo el contenido del archivo `.json` de Google, tal cual |
+| `META_TOKEN` | El token del usuario del sistema de Meta (opcional) |
 
 Después **Implementaciones → Volver a implementar** la última. Borra el `.json` de tu ordenador cuando esté pegado. Ni las claves ni el archivo van nunca a GitHub.
 
-Valores que ya vienen puestos y solo hay que cambiar si cambia algo: `SHOPIFY_TIENDA` (`de800h-ms.myshopify.com`), `SHOPIFY_VERSION` (`2026-07`), `GA_PROPIEDAD` (`564410947`), `FIREBASE_PROYECTO` (`dormily-panel`), `CUENTA_EQUIPO` (`panel@dormily.es`).
+Valores que ya vienen puestos y solo hay que cambiar si cambia algo: `SHOPIFY_TIENDA` (`de800h-ms.myshopify.com`), `SHOPIFY_VERSION` (`2026-10`), `GA_PROPIEDAD` (`564410947`), `FIREBASE_PROYECTO` (`dormily-panel`), `CUENTA_EQUIPO` (`panel@dormily.es`), `META_VERSION` (`v23.0`), `META_PAGINA` (`1412410575299118`), `META_DATASET` (`3314865168719686`), `META_IG` (vacío: se toma el Instagram unido a la página).
 
 ## Archivos
 | Archivo | Para qué |
 |---|---|
-| `functions/api/estadisticas.js` | Datos de la pestaña Estadísticas (Shopify y Google Analytics), en Cloudflare Pages |
+| `functions/api/estadisticas.js` | Datos de la pestaña Estadísticas (Shopify, Google Analytics y Meta), en Cloudflare Pages |
 | `index.html` | La página: entrada, tareas, calendario y notas |
 | `nube.js` | Entrada con nombre y código, y conexión con Firestore |
 | `config.js` | Configuración de Firebase, cuenta del equipo y nombres |

@@ -328,10 +328,11 @@
   .kpis-cont { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; padding-top: 10px; }
   @media (max-width: 640px) { .kpis-cont { grid-template-columns: repeat(2, minmax(0, 1fr)); } .kpis-cont .neto { font-size: 17px; } }
   /* Statistics tab */
-  .est-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; padding-top: 10px; }
+  .est-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; padding-top: 10px; }
   @media (max-width: 640px) { .est-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .est-kpis .neto { font-size: 17px; } }
   .est-n { color: var(--muted); font-size: 13px; }
-  .est-nota { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .est-nota { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  .est-kpis .neto { overflow-wrap: anywhere; }
   .est-graficas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }
   .est-graf { margin: 0; background: var(--surface); border-radius: 16px; box-shadow: var(--sombra); padding: 14px 16px; min-width: 0; }
   .est-graf figcaption { display: flex; justify-content: space-between; gap: 8px; font-weight: 700; font-size: 14px; margin-bottom: 8px; }
@@ -349,6 +350,7 @@
   .est-barra { grid-column: 1 / -1; height: 6px; background: var(--sunk); border-radius: 999px; overflow: hidden; }
   .est-barra i { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
   .est-aviso { background: var(--warn-soft); border-radius: 10px; padding: 10px 12px; font-size: 13.5px; margin-top: 10px; }
+  .est-graf .est-lista .grupo-titulo { margin-top: 0; }
   .est-pie { color: var(--muted); font-size: 12.5px; margin: 18px 0 40px; }
   @media (max-width: 720px) { .est-graficas, .est-listas { grid-template-columns: minmax(0, 1fr); } }
   @media (max-width: 900px) {
@@ -975,46 +977,83 @@ function avisoFuente(nombreF, f, clave) {
   if (f.error) return '<div class="est-aviso"><b>' + nombreF + ' no responde:</b> ' + esc(f.error) + '</div>';
   return '';
 }
+const nombreFuenteShopify = (s) => ({ direct: 'Directo (escriben la dirección)', search: 'Buscadores', social: 'Redes sociales', email: 'Correo', unknown: 'Sin identificar', paid: 'Anuncios' }[String(s).toLowerCase()] || s);
+const NOMBRES_PIXEL = { PageView: 'Visitas a páginas', ViewContent: 'Vieron un producto', Search: 'Búsquedas', AddToCart: 'Añadieron al carrito', InitiateCheckout: 'Empezaron el pago', AddPaymentInfo: 'Pusieron el pago', Purchase: 'Compras' };
+const ORDEN_PIXEL = Object.keys(NOMBRES_PIXEL);
+const tileEst = (n, v, nota) => '<div class="saldo"><span class="est-n">' + n + '</span><span class="neto">' + v + '</span>' + (nota ? '<span class="est-nota">' + nota + '</span>' : '') + '</div>';
+const avisoParte = (txt, err) => '<div class="est-aviso"><b>' + txt + '</b> ' + esc(err) + '</div>';
+function bloqueMeta(me) {
+  let h = '<h3 class="grupo-titulo" style="margin-top:28px">Instagram, Facebook y píxel de Meta</h3>';
+  if (!me || !me.configurado) return h + '<div class="est-aviso"><b>Meta sin conectar.</b> Falta la clave <code>META_TOKEN</code> en Cloudflare (ver README).</div>';
+  if (me.error) return h + avisoParte('Meta no responde:', me.error);
+  const ig = me.instagram || {}, fb = me.facebook || {}, px = me.pixel || {};
+  const alcance = ig.alcancePorDia ? Object.values(ig.alcancePorDia).reduce((s, v) => s + v, 0) : null;
+  if (ig.error) h += avisoParte('Instagram:', ig.error);
+  if (!ig.error && ig.errorAlcance) h += avisoParte('Alcance de Instagram:', ig.errorAlcance);
+  if (fb.error) h += avisoParte('Facebook:', fb.error);
+  if (px.error) h += avisoParte('Píxel de Meta:', px.error);
+  h += '<div class="est-kpis">' +
+    tileEst('Seguidores en Instagram', ig.error ? '–' : fEnteros.format(ig.seguidores), ig.usuario ? '@' + esc(ig.usuario) + ' · ' + fEnteros.format(ig.publicaciones) + ' publicaciones' : '') +
+    tileEst('Alcance en Instagram', alcance == null ? '–' : fEnteros.format(alcance), alcance == null ? '' : 'Cuentas que vieron algo, sumadas por día') +
+    tileEst('Seguidores en Facebook', fb.error ? '–' : fEnteros.format(fb.seguidores), fb.nombre ? esc(fb.nombre) : '') + '</div>';
+  const graficas = [];
+  if (ig.alcancePorDia) { const f = Object.keys(ig.alcancePorDia); graficas.push(graficaDias('Alcance de Instagram por día', f, f.map((k) => ig.alcancePorDia[k]), (v) => fEnteros.format(v))); }
+  if (px.eventos) {
+    const filas = Object.entries(px.eventos).sort((a, b) => (ORDEN_PIXEL.indexOf(a[0]) + 99) % 99 - (ORDEN_PIXEL.indexOf(b[0]) + 99) % 99).map(([k, v]) => ({ n: NOMBRES_PIXEL[k] || k, v, t: fEnteros.format(v) }));
+    graficas.push('<div class="est-graf">' + listaBarras('Lo que recibe el píxel de Meta', filas, 'El píxel todavía no ha recibido nada en este periodo.') + '</div>');
+  }
+  if (graficas.length) h += '<div class="est-graficas">' + graficas.join('') + '</div>';
+  return h;
+}
 function renderEstadisticas() {
   const E = S.est;
   if (S.db && !E.cargando && !E.error && (!E.datos || Date.now() - E.cuando > 600000)) setTimeout(() => cargarEstadisticas(false), 0);
   const sel = '<select id="f-est-dias" aria-label="Periodo">' + [[7, 'Últimos 7 días'], [30, 'Últimos 30 días'], [90, 'Últimos 90 días']].map(([k, n]) => '<option value="' + k + '"' + (E.dias === k ? ' selected' : '') + '>' + n + '</option>').join('') + '</select>';
-  let html = cabecera('Estadísticas', 'Ventas de la tienda y visitas de la web, en un solo sitio.', sel + '<button class="btn" type="button" id="est-recargar"' + (E.cargando ? ' disabled' : '') + '>' + (E.cargando ? 'Cargando…' : 'Actualizar') + '</button>');
+  let html = cabecera('Estadísticas', 'Ventas, visitas y redes, en un solo sitio.', sel + '<button class="btn" type="button" id="est-recargar"' + (E.cargando ? ' disabled' : '') + '>' + (E.cargando ? 'Cargando…' : 'Actualizar') + '</button>');
   if (E.error === 'sin-servidor') return html + '<div class="vacio">Las estadísticas solo funcionan en la versión del panel alojada en Cloudflare. Esta dirección no tiene la parte de servidor.</div>';
   if (E.error) return html + '<div class="vacio">No se han podido cargar: ' + esc(E.error) + '</div>';
   if (!E.datos) return html + '<div class="vacio">Cargando estadísticas…</div>';
 
   const d = E.datos, sh = d.shopify, ga = d.analytics;
   const okSh = sh.configurado && !sh.error, okGa = ga.configurado && !ga.error;
+  const ses = okSh && sh.sesiones && !sh.sesiones.error ? sh.sesiones : null;
+  const ab = okSh && sh.abandonados && !sh.abandonados.error ? sh.abandonados : null;
   html += avisoFuente('Shopify', sh, 'SHOPIFY_CLIENT_ID y SHOPIFY_CLIENT_SECRET') + avisoFuente('Google Analytics', ga, 'GA_CLAVE_JSON');
-  const tile = (n, v, nota) => '<div class="saldo"><span class="est-n">' + n + '</span><span class="neto">' + v + '</span>' + (nota ? '<span class="est-nota">' + nota + '</span>' : '') + '</div>';
-  const conv = okSh && okGa && ga.sesiones ? sh.pedidos / ga.sesiones : null;
+  if (okSh && sh.sesiones && sh.sesiones.error) html += avisoParte('Visitas de Shopify no disponibles:', sh.sesiones.error);
+  if (okSh && sh.abandonados && sh.abandonados.error) html += avisoParte('Carritos abandonados no disponibles:', sh.abandonados.error);
+
+  const visitas = ses ? ses.sesiones : (okGa ? ga.sesiones : null);
+  const conv = okSh && visitas ? sh.pedidos / visitas : null;
   html += '<div class="est-kpis">' +
-    tile('Ventas', okSh ? euros(sh.ventas) : '–', okSh && sh.pedidos ? 'Ticket medio ' + euros(sh.ticket) : '') +
-    tile('Pedidos', okSh ? fEnteros.format(sh.pedidos) : '–', '') +
-    tile('Visitantes', okGa ? fEnteros.format(ga.usuarios) : '–', okGa ? fEnteros.format(ga.sesiones) + ' visitas' : '') +
-    tile('Conversión', conv == null ? '–' : fPct.format(conv), conv == null ? '' : 'Pedidos por cada visita') + '</div>';
+    tileEst('Ventas', okSh ? euros(sh.ventas) : '–', okSh && sh.pedidos ? 'Ticket medio ' + euros(sh.ticket) : '') +
+    tileEst('Pedidos', okSh ? fEnteros.format(sh.pedidos) : '–', '') +
+    tileEst('Visitas a la tienda', visitas == null ? '–' : fEnteros.format(visitas), ses ? 'Según Shopify · ' + fEnteros.format(ses.visitantes) + ' personas' : (okGa ? 'Según Analytics' : '')) +
+    tileEst('Conversión', conv == null ? '–' : fPct.format(conv), conv == null ? '' : 'Pedidos por cada visita') +
+    tileEst('Carritos abandonados', ab ? fEnteros.format(ab.numero) : '–', ab && ab.numero ? 'Valor ' + euros(ab.valor) : (ab ? 'Ninguno en este periodo' : '')) +
+    tileEst('Con cookies aceptadas', okGa ? fEnteros.format(ga.usuarios) : '–', okGa ? 'Visitantes que ve Analytics' : '') + '</div>';
 
   const graficas = [];
   if (okSh) { const f = Object.keys(sh.porDia); graficas.push(graficaDias('Ventas por día', f, f.map((k) => sh.porDia[k].ventas), euros)); }
-  if (okGa) { const f = Object.keys(ga.porDia); graficas.push(graficaDias('Visitantes por día', f, f.map((k) => ga.porDia[k].usuarios), (v) => fEnteros.format(v))); }
+  if (ses) { const f = Object.keys(ses.porDia); graficas.push(graficaDias('Visitas por día', f, f.map((k) => ses.porDia[k]), (v) => fEnteros.format(v))); }
+  else if (okGa) { const f = Object.keys(ga.porDia); graficas.push(graficaDias('Visitantes por día', f, f.map((k) => ga.porDia[k].usuarios), (v) => fEnteros.format(v))); }
   if (graficas.length) html += '<div class="est-graficas">' + graficas.join('') + '</div>';
 
   const listas = [];
-  if (okGa) {
+  if (ses) listas.push(listaBarras('De dónde vienen', ses.fuentes.map((x) => ({ n: nombreFuenteShopify(x.nombre), v: x.sesiones, t: fEnteros.format(x.sesiones) + ' visitas' })), 'Aún no hay visitas en este periodo.'));
+  else if (okGa) {
     const fuentes = {};
     ga.fuentes.forEach((x) => { const n = nombreFuente(x.nombre); fuentes[n] = (fuentes[n] || 0) + x.sesiones; });
     listas.push(listaBarras('De dónde vienen', Object.entries(fuentes).sort((a, b) => b[1] - a[1]).map(([n, v]) => ({ n, v, t: fEnteros.format(v) + ' visitas' })), 'Aún no hay visitas en este periodo.'));
-    const pasos = [['view_item', 'Vieron un producto'], ['add_to_cart', 'Añadieron al carrito'], ['begin_checkout', 'Empezaron el pago'], ['purchase', 'Compraron']];
-    listas.push(listaBarras('Embudo de compra', pasos.map(([k, n], i) => {
-      const v = ga.embudo[k] || 0, ant = i ? ga.embudo[pasos[i - 1][0]] || 0 : 0;
-      return { n, v, t: fEnteros.format(v) + (i && ant ? ' · ' + fPct.format(v / ant) : '') };
-    }), 'Aún no hay visitas a productos en este periodo.'));
-    listas.push(listaBarras('Páginas más vistas', ga.paginas.map((p) => ({ n: p.ruta === '/' ? 'Portada' : p.ruta, v: p.vistas, t: fEnteros.format(p.vistas) })), 'Aún no hay visitas en este periodo.'));
   }
+  const pasosDe = (pasos) => pasos.map(([n, v], i) => ({ n, v, t: fEnteros.format(v) + (i && pasos[i - 1][1] ? ' · ' + fPct.format(v / pasos[i - 1][1]) : '') }));
+  if (ses) listas.push(listaBarras('Embudo de compra', pasosDe([['Visitas', ses.sesiones], ['Añadieron al carrito', ses.conCarrito], ['Llegaron al pago', ses.alPago], ['Compraron', ses.compradas]]), 'Aún no hay visitas en este periodo.'));
+  else if (okGa) listas.push(listaBarras('Embudo de compra', pasosDe([['Vieron un producto', ga.embudo.view_item || 0], ['Añadieron al carrito', ga.embudo.add_to_cart || 0], ['Empezaron el pago', ga.embudo.begin_checkout || 0], ['Compraron', ga.embudo.purchase || 0]]), 'Aún no hay visitas a productos en este periodo.'));
+  if (okGa) listas.push(listaBarras('Páginas más vistas', ga.paginas.map((p) => ({ n: p.ruta === '/' ? 'Portada' : p.ruta, v: p.vistas, t: fEnteros.format(p.vistas) })), 'Aún no hay visitas en este periodo.'));
   if (okSh) listas.push(listaBarras('Productos más vendidos', sh.productos.map((p) => ({ n: p.titulo, v: p.unidades, t: fEnteros.format(p.unidades) + ' ud.' })), 'Aún no hay ventas en este periodo.'));
   if (listas.length) html += '<div class="est-listas">' + listas.join('') + '</div>';
-  html += '<p class="est-pie">Datos de ' + esc(haceCuanto(d.generado)) + '. Se guardan 10 minutos; «Actualizar» los pide de nuevo. Analytics solo cuenta a quien acepta las cookies, así que marca menos visitas que las reales.</p>';
+
+  html += bloqueMeta(d.meta);
+  html += '<p class="est-pie">Datos de ' + esc(haceCuanto(d.generado)) + '. Se guardan 10 minutos; «Actualizar» los pide de nuevo. Las visitas de Shopify cuentan a todo el mundo; Analytics y el píxel de Meta solo a quien acepta las cookies.</p>';
   return html;
 }
 
