@@ -12,10 +12,12 @@ const guardarQuien = (q) => { try { if (q) localStorage.setItem(CLAVE_QUIEN, q);
 
 const vista = (s) => ({ docs: s.docs.map((d) => Object.assign({ id: d.id }, d.data())) });
 
-// Small surface the panel uses: collection(x).add / ultimos / doc(id).get|set|update|delete / onSnapshot, plus arrayUnion.
-function adaptador(fs) {
+// Small surface the panel uses: collection(x).add / ultimos / doc(id).get|set|update|delete / onSnapshot, plus arrayUnion
+// and token(), the signed-in ID token that the statistics endpoint checks.
+function adaptador(fs, auth) {
   return {
     arrayUnion: (...valores) => arrayUnion(...valores),
+    token: () => (auth.currentUser ? auth.currentUser.getIdToken() : Promise.resolve(null)),
     collection(nombre) {
       const ref = collection(fs, nombre);
       return {
@@ -107,7 +109,7 @@ export function iniciar({ alEntrar, alSalir, alError }) {
     if (dentro) return;
     dentro = true;
     try { await sembrar(fs); await pasarALandez(fs); } catch (e) { /* Offline or no access: the listeners report it. */ }
-    alEntrar({ nombre: NOMBRES[quien], persona: quien }, adaptador(fs));
+    alEntrar({ nombre: NOMBRES[quien], persona: quien }, adaptador(fs, auth));
   }
 
   $('nombres').addEventListener('click', (e) => {

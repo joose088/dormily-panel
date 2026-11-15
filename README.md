@@ -13,6 +13,7 @@ Para entrar, cada uno toca su nombre y escribe el **código del equipo**. El mó
 | Contabilidad | Gastos e ingresos con IVA, facturas adjuntas (foto o PDF), cuentas entre socios («quién debe a quién») y exportación CSV para la gestoría |
 | Proveedores | Estado de cada negociación, condiciones, contactos y siguiente paso |
 | Contenido | Ideas y publicaciones para redes, de idea a publicado |
+| Estadísticas | Ventas de Shopify y visitas de Google Analytics: cifras clave, ventas y visitantes por día, de dónde viene la gente, embudo de compra, páginas y productos. Solo funciona en la versión de Cloudflare (ver abajo) |
 | Notas, Enlaces | Acuerdos y accesos directos a las herramientas |
 | Actividad | Lo último que ha hecho cada uno |
 
@@ -40,9 +41,42 @@ En el móvil: **Añadir a pantalla de inicio** (Safari: botón Compartir; Chrome
 ## Cambiar el código
 **Authentication → Usuarios →** en `panel@dormily.es`, menú ⋮ → **Restablecer contraseña** no sirve (el correo no existe): borra el usuario y créalo otra vez con el código nuevo. Los datos no se pierden.
 
+## Estadísticas (Cloudflare Pages, gratis y sin tarjeta)
+La pestaña «Estadísticas» pide los datos a `functions/api/estadisticas.js`, una función que se ejecuta en Cloudflare Pages. Comprueba que quien pregunta ha entrado con el código del equipo, lee Shopify y Google Analytics con claves que solo están en Cloudflare y guarda la respuesta 10 minutos. En Vercel esa función no existe, así que allí la pestaña avisa de que hay que usar la dirección de Cloudflare.
+
+### 1. Publicar el panel en Cloudflare
+1. Crea una cuenta gratuita en https://dash.cloudflare.com/sign-up con `contacto@landezdescanso.es`. No pide tarjeta.
+2. **Workers y Pages → Crear → Pages → Conectar con Git →** autoriza GitHub y elige el repositorio `dormily-panel`.
+3. Ajustes de compilación: **Ajuste predefinido: Ninguno**, **Comando de compilación: vacío**, **Directorio de salida: `/`**. Pulsa **Guardar e implementar**.
+4. Queda en una dirección `https://<nombre>.pages.dev`. Si Firebase no deja entrar desde ella, añade ese dominio en **Firebase → Authentication → Configuración → Dominios autorizados**.
+
+### 2. Clave de Shopify (`SHOPIFY_TOKEN`)
+1. Shopify → **Configuración → Apps → Desarrollar apps → Crear una app**, con el nombre «Panel Landez».
+2. **Configurar los permisos de la API de Admin**: marca solo `read_orders` y `read_products`.
+3. **Instalar app** y copia el **token de acceso de la API de Admin**. Solo se enseña una vez.
+
+### 3. Clave de Google Analytics (`GA_CLAVE_JSON`)
+1. https://console.cloud.google.com con la cuenta `contacto@landezdescanso.es` → crea un proyecto «Panel Landez». No hace falta activar la facturación.
+2. **APIs y servicios → Biblioteca →** busca **Google Analytics Data API** → **Habilitar**.
+3. **IAM y administración → Cuentas de servicio → Crear cuenta de servicio** con el nombre «panel-estadisticas». No le des roles.
+4. En la cuenta creada: **Claves → Agregar clave → Crear clave nueva → JSON**. Se descarga un archivo `.json`.
+5. En Google Analytics: **Administrar → Gestión de acceso a la propiedad → + → Añadir usuarios →** el correo de la cuenta de servicio (termina en `iam.gserviceaccount.com`), rol **Lector**, sin notificar.
+
+### 4. Pegar las claves en Cloudflare
+En el proyecto de Pages: **Configuración → Variables y secretos → Agregar**, tipo **Secreto**, en **Producción**:
+| Nombre | Valor |
+|---|---|
+| `SHOPIFY_TOKEN` | El token de Shopify |
+| `GA_CLAVE_JSON` | Todo el contenido del archivo `.json` de Google, tal cual |
+
+Después **Implementaciones → Volver a implementar** la última. Borra el `.json` de tu ordenador cuando esté pegado. Ni las claves ni el archivo van nunca a GitHub.
+
+Valores que ya vienen puestos y solo hay que cambiar si cambia algo: `SHOPIFY_TIENDA` (`de800h-ms.myshopify.com`), `SHOPIFY_VERSION` (`2026-07`), `GA_PROPIEDAD` (`564410947`), `FIREBASE_PROYECTO` (`dormily-panel`), `CUENTA_EQUIPO` (`panel@dormily.es`).
+
 ## Archivos
 | Archivo | Para qué |
 |---|---|
+| `functions/api/estadisticas.js` | Datos de la pestaña Estadísticas (Shopify y Google Analytics), en Cloudflare Pages |
 | `index.html` | La página: entrada, tareas, calendario y notas |
 | `nube.js` | Entrada con nombre y código, y conexión con Firestore |
 | `config.js` | Configuración de Firebase, cuenta del equipo y nombres |

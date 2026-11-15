@@ -327,6 +327,30 @@
   .chk-linea.campo { display: flex; align-items: center; }
   .kpis-cont { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; padding-top: 10px; }
   @media (max-width: 640px) { .kpis-cont { grid-template-columns: repeat(2, minmax(0, 1fr)); } .kpis-cont .neto { font-size: 17px; } }
+  /* Statistics tab */
+  .est-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; padding-top: 10px; }
+  @media (max-width: 640px) { .est-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .est-kpis .neto { font-size: 17px; } }
+  .est-n { color: var(--muted); font-size: 13px; }
+  .est-nota { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .est-graficas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }
+  .est-graf { margin: 0; background: var(--surface); border-radius: 16px; box-shadow: var(--sombra); padding: 14px 16px; min-width: 0; }
+  .est-graf figcaption { display: flex; justify-content: space-between; gap: 8px; font-weight: 700; font-size: 14px; margin-bottom: 8px; }
+  .est-graf .max { color: var(--muted); font-weight: 500; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .est-graf svg { width: 100%; height: auto; display: block; }
+  .est-graf rect { fill: var(--accent); }
+  .est-graf .eje { stroke: var(--line); stroke-width: 1; }
+  .est-graf text { fill: var(--muted); font-size: 12px; font-family: var(--f-body); }
+  .est-listas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 22px; }
+  .est-lista { min-width: 0; }
+  .est-lista ol { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 9px; }
+  .est-lista li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 10px; font-size: 13.5px; }
+  .est-lista .nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .est-lista .val { font-variant-numeric: tabular-nums; color: var(--muted); }
+  .est-barra { grid-column: 1 / -1; height: 6px; background: var(--sunk); border-radius: 999px; overflow: hidden; }
+  .est-barra i { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+  .est-aviso { background: var(--warn-soft); border-radius: 10px; padding: 10px 12px; font-size: 13.5px; margin-top: 10px; }
+  .est-pie { color: var(--muted); font-size: 12.5px; margin: 18px 0 40px; }
+  @media (max-width: 720px) { .est-graficas, .est-listas { grid-template-columns: minmax(0, 1fr); } }
   @media (max-width: 900px) {
     .dos-col { grid-template-columns: minmax(0, 1fr); }
     .saldos { grid-template-columns: minmax(0, 1fr); }
@@ -410,14 +434,15 @@ const CAT_INGRESO = ['Ventas', 'Aportación de socios', 'Otros ingresos'];
 const IVAS = [['21', '21 %'], ['10', '10 %'], ['4', '4 %'], ['0', 'Sin IVA']];
 const REDES = ['Instagram y TikTok', 'Instagram', 'TikTok', 'Facebook', 'YouTube'];
 const FORMATOS = ['Vídeo vertical', 'Carrusel', 'Foto', 'Historia'];
-const VISTAS = [['tareas', 'Tareas'], ['calendario', 'Calendario'], ['compras', 'Compras'], ['contabilidad', 'Contabilidad'], ['proveedores', 'Proveedores'], ['contenido', 'Contenido'], ['notas', 'Notas'], ['enlaces', 'Enlaces'], ['actividad', 'Actividad']];
+const VISTAS = [['tareas', 'Tareas'], ['estadisticas', 'Estadísticas'], ['calendario', 'Calendario'], ['compras', 'Compras'], ['contabilidad', 'Contabilidad'], ['proveedores', 'Proveedores'], ['contenido', 'Contenido'], ['notas', 'Notas'], ['enlaces', 'Enlaces'], ['actividad', 'Actividad']];
 const COLS = ['tareas', 'eventos', 'notas', 'movimientos', 'proveedores', 'compras', 'contenido', 'enlaces'];
 const MAX_PDF = 700 * 1024;
 
 const S = {
   db: null, yo: null, escribir: true, actividad: [], listo: {},
   vista: 'tareas', persona: 'all', area: 'all', soloVencidas: false, verHechas: true, verCerrados: false,
-  periodo: 'anio', filtroMov: 'todos', filtroProv: 'todos', verDescartados: false, mes: null, dia: null
+  periodo: 'anio', filtroMov: 'todos', filtroProv: 'todos', verDescartados: false, mes: null, dia: null,
+  est: { dias: 30, datos: null, cuando: 0, cargando: false, error: null }
 };
 COLS.forEach((c) => { S[c] = []; S.listo[c] = false; });
 S.listo.actividad = false;
@@ -910,8 +935,91 @@ function renderActividad() {
       '<div class="actividad">' + lista.map((a) => '<div class="act">' + personaHtml(a.quien).replace(/(<\/span>)([^<]+)(<\/span>)$/, '$1$3') + '<span><b>' + esc(nombre(a.quien)) + '</b> ' + esc(a.texto) + '</span><span class="cuando">' + esc(haceCuanto(a.fecha)) + '</span></div>').join('') + '</div>');
 }
 
+/* ---------- Estadísticas ---------- */
+const fEnteros = new Intl.NumberFormat('es-ES');
+const fPct = new Intl.NumberFormat('es-ES', { style: 'percent', maximumFractionDigits: 1 });
+async function cargarEstadisticas(fresco) {
+  if (!S.db || S.est.cargando) return;
+  S.est.cargando = true; S.est.error = null;
+  if (S.vista === 'estadisticas' && !$('capa').innerHTML) render();
+  try {
+    const t = await S.db.token();
+    const r = await fetch('/api/estadisticas?dias=' + S.est.dias + (fresco ? '&fresco=1' : ''), { headers: { Authorization: 'Bearer ' + t } });
+    if (!(r.headers.get('content-type') || '').includes('application/json')) throw new Error('sin-servidor');
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Error ' + r.status);
+    S.est.datos = d; S.est.cuando = Date.now();
+  } catch (e) { S.est.error = e.message || String(e); }
+  S.est.cargando = false;
+  if (S.vista === 'estadisticas' && !$('capa').innerHTML) render();
+}
+// Bar chart drawn with one scale; the first and last day label the x axis.
+function graficaDias(titulo, fechas, valores, fmt) {
+  const W = 640, H = 160, BAJO = 22, ALTO = 8, n = valores.length;
+  const max = Math.max(0, ...valores);
+  const paso = W / n, ancho = Math.max(1, paso * 0.72);
+  const h = (v) => (max ? (v / max) * (H - BAJO - ALTO) : 0);
+  const barras = valores.map((v, i) => '<rect x="' + (i * paso + (paso - ancho) / 2).toFixed(1) + '" y="' + (H - BAJO - h(v)).toFixed(1) + '" width="' + ancho.toFixed(1) + '" height="' + h(v).toFixed(1) + '" rx="2"><title>' + esc(fCorta.format(deIso(fechas[i])) + ': ' + fmt(v)) + '</title></rect>').join('');
+  return '<figure class="est-graf"><figcaption><span>' + esc(titulo) + '</span><span class="max">' + (max ? 'Día más alto: ' + esc(fmt(max)) : 'Sin datos todavía') + '</span></figcaption>' +
+    '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(titulo) + '"><line class="eje" x1="0" x2="' + W + '" y1="' + (H - BAJO) + '" y2="' + (H - BAJO) + '"></line>' + barras +
+    '<text x="0" y="' + (H - 5) + '">' + esc(fCorta.format(deIso(fechas[0]))) + '</text><text x="' + W + '" y="' + (H - 5) + '" text-anchor="end">' + esc(fCorta.format(deIso(fechas[n - 1]))) + '</text></svg></figure>';
+}
+function listaBarras(titulo, filas, vacio) {
+  const max = Math.max(0, ...filas.map((f) => f.v));
+  return '<section class="est-lista"><h3 class="grupo-titulo">' + esc(titulo) + '</h3>' + (filas.length && max ? '<ol>' + filas.map((f) =>
+    '<li><span class="nom" title="' + esc(f.n) + '">' + esc(f.n) + '</span><span class="val">' + esc(f.t) + '</span><span class="est-barra"><i style="width:' + (f.v / max * 100).toFixed(1) + '%"></i></span></li>').join('') + '</ol>' : '<div class="vacio" style="margin-top:8px">' + vacio + '</div>') + '</section>';
+}
+const nombreFuente = (s) => ({ '(direct) / (none)': 'Directo (escriben la dirección)', 'google / organic': 'Google (búsqueda gratis)', 'instagram / social': 'Instagram', 'l.instagram.com / referral': 'Instagram', 'facebook / social': 'Facebook', 'm.facebook.com / referral': 'Facebook', 'l.facebook.com / referral': 'Facebook', 'tiktok / social': 'TikTok', 'tiktok.com / referral': 'TikTok' }[s] || s);
+function avisoFuente(nombreF, f, clave) {
+  if (!f.configurado) return '<div class="est-aviso"><b>' + nombreF + ' sin conectar.</b> Falta la clave <code>' + clave + '</code> en Cloudflare (ver README).</div>';
+  if (f.error) return '<div class="est-aviso"><b>' + nombreF + ' no responde:</b> ' + esc(f.error) + '</div>';
+  return '';
+}
+function renderEstadisticas() {
+  const E = S.est;
+  if (S.db && !E.cargando && !E.error && (!E.datos || Date.now() - E.cuando > 600000)) setTimeout(() => cargarEstadisticas(false), 0);
+  const sel = '<select id="f-est-dias" aria-label="Periodo">' + [[7, 'Últimos 7 días'], [30, 'Últimos 30 días'], [90, 'Últimos 90 días']].map(([k, n]) => '<option value="' + k + '"' + (E.dias === k ? ' selected' : '') + '>' + n + '</option>').join('') + '</select>';
+  let html = cabecera('Estadísticas', 'Ventas de la tienda y visitas de la web, en un solo sitio.', sel + '<button class="btn" type="button" id="est-recargar"' + (E.cargando ? ' disabled' : '') + '>' + (E.cargando ? 'Cargando…' : 'Actualizar') + '</button>');
+  if (E.error === 'sin-servidor') return html + '<div class="vacio">Las estadísticas solo funcionan en la versión del panel alojada en Cloudflare. Esta dirección no tiene la parte de servidor.</div>';
+  if (E.error) return html + '<div class="vacio">No se han podido cargar: ' + esc(E.error) + '</div>';
+  if (!E.datos) return html + '<div class="vacio">Cargando estadísticas…</div>';
+
+  const d = E.datos, sh = d.shopify, ga = d.analytics;
+  const okSh = sh.configurado && !sh.error, okGa = ga.configurado && !ga.error;
+  html += avisoFuente('Shopify', sh, 'SHOPIFY_TOKEN') + avisoFuente('Google Analytics', ga, 'GA_CLAVE_JSON');
+  const tile = (n, v, nota) => '<div class="saldo"><span class="est-n">' + n + '</span><span class="neto">' + v + '</span>' + (nota ? '<span class="est-nota">' + nota + '</span>' : '') + '</div>';
+  const conv = okSh && okGa && ga.sesiones ? sh.pedidos / ga.sesiones : null;
+  html += '<div class="est-kpis">' +
+    tile('Ventas', okSh ? euros(sh.ventas) : '–', okSh && sh.pedidos ? 'Ticket medio ' + euros(sh.ticket) : '') +
+    tile('Pedidos', okSh ? fEnteros.format(sh.pedidos) : '–', '') +
+    tile('Visitantes', okGa ? fEnteros.format(ga.usuarios) : '–', okGa ? fEnteros.format(ga.sesiones) + ' visitas' : '') +
+    tile('Conversión', conv == null ? '–' : fPct.format(conv), conv == null ? '' : 'Pedidos por cada visita') + '</div>';
+
+  const graficas = [];
+  if (okSh) { const f = Object.keys(sh.porDia); graficas.push(graficaDias('Ventas por día', f, f.map((k) => sh.porDia[k].ventas), euros)); }
+  if (okGa) { const f = Object.keys(ga.porDia); graficas.push(graficaDias('Visitantes por día', f, f.map((k) => ga.porDia[k].usuarios), (v) => fEnteros.format(v))); }
+  if (graficas.length) html += '<div class="est-graficas">' + graficas.join('') + '</div>';
+
+  const listas = [];
+  if (okGa) {
+    const fuentes = {};
+    ga.fuentes.forEach((x) => { const n = nombreFuente(x.nombre); fuentes[n] = (fuentes[n] || 0) + x.sesiones; });
+    listas.push(listaBarras('De dónde vienen', Object.entries(fuentes).sort((a, b) => b[1] - a[1]).map(([n, v]) => ({ n, v, t: fEnteros.format(v) + ' visitas' })), 'Aún no hay visitas en este periodo.'));
+    const pasos = [['view_item', 'Vieron un producto'], ['add_to_cart', 'Añadieron al carrito'], ['begin_checkout', 'Empezaron el pago'], ['purchase', 'Compraron']];
+    listas.push(listaBarras('Embudo de compra', pasos.map(([k, n], i) => {
+      const v = ga.embudo[k] || 0, ant = i ? ga.embudo[pasos[i - 1][0]] || 0 : 0;
+      return { n, v, t: fEnteros.format(v) + (i && ant ? ' · ' + fPct.format(v / ant) : '') };
+    }), 'Aún no hay visitas a productos en este periodo.'));
+    listas.push(listaBarras('Páginas más vistas', ga.paginas.map((p) => ({ n: p.ruta === '/' ? 'Portada' : p.ruta, v: p.vistas, t: fEnteros.format(p.vistas) })), 'Aún no hay visitas en este periodo.'));
+  }
+  if (okSh) listas.push(listaBarras('Productos más vendidos', sh.productos.map((p) => ({ n: p.titulo, v: p.unidades, t: fEnteros.format(p.unidades) + ' ud.' })), 'Aún no hay ventas en este periodo.'));
+  if (listas.length) html += '<div class="est-listas">' + listas.join('') + '</div>';
+  html += '<p class="est-pie">Datos de ' + esc(haceCuanto(d.generado)) + '. Se guardan 10 minutos; «Actualizar» los pide de nuevo. Analytics solo cuenta a quien acepta las cookies, así que marca menos visitas que las reales.</p>';
+  return html;
+}
+
 /* ---------- Render ---------- */
-const VISTA_FN = { tareas: renderTareas, calendario: renderCalendario, compras: renderCompras, contabilidad: renderContabilidad, proveedores: renderProveedores, contenido: renderContenido, notas: renderNotas, enlaces: renderEnlaces, actividad: renderActividad };
+const VISTA_FN = { tareas: renderTareas, estadisticas: renderEstadisticas, calendario: renderCalendario, compras: renderCompras, contabilidad: renderContabilidad, proveedores: renderProveedores, contenido: renderContenido, notas: renderNotas, enlaces: renderEnlaces, actividad: renderActividad };
 function render() {
   renderCifras();
   renderPestanas();
@@ -1344,6 +1452,7 @@ document.addEventListener('click', (e) => {
   const fila = e.target.closest('tr[data-abrir]');
   const b = e.target.closest('button') || fila;
   if (!b || !$('todo') || $('todo').hidden) return;
+  if (b.id === 'est-recargar') { cargarEstadisticas(true); return; }
   if (b.closest('#capa')) return;
   if (b.dataset.vista) return irA(b.dataset.vista);
   if (b.dataset.ir) {
@@ -1390,6 +1499,7 @@ document.addEventListener('change', (e) => {
   if (e.target.id === 'f-cerrados') { S.verCerrados = e.target.checked; render(); }
   if (e.target.id === 'f-descartados') { S.verDescartados = e.target.checked; render(); }
   if (e.target.id === 'f-periodo') { S.periodo = e.target.value; guardarLocal('periodo', S.periodo); render(); }
+  if (e.target.id === 'f-est-dias') { S.est.dias = Number(e.target.value); S.est.datos = null; S.est.error = null; render(); }
 });
 
 /* ---------- Start ---------- */
