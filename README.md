@@ -8,6 +8,7 @@ Para entrar, cada uno toca su nombre y escribe el **código del equipo**. El mó
 | Sección | Qué hay |
 |---|---|
 | Tareas | Por hacer, en marcha y hecho; responsable, área, fecha límite, pasos y comentarios |
+| Gestión | Catálogo de productos (foto, referencia, características, precio, peso y volumen), clientes y documentos: presupuestos, pedidos y albaranes. Al hacer un documento se busca el producto y se añade con todo; un presupuesto pasa a pedido y un pedido a albarán con un botón. Se imprime o se guarda en PDF con la plantilla de `documento.js`. En «Datos de la empresa» van la razón social, el NIF, el domicilio y las condiciones que se ponen solas |
 | Calendario | Eventos, fechas límite, llegadas de compras, publicaciones y siguientes pasos con proveedores. Botón «Añadir a Google Calendar» |
 | Compras | Pedidos a proveedores: qué se pide, estado (de «por pedir» a «recibido»), fecha prevista, si está pagado y a qué pedido de Shopify va. Puede apuntar el gasto en Contabilidad. Las ventas están en Shopify |
 | Contabilidad | Gastos e ingresos con IVA, facturas adjuntas (foto o PDF), cuentas entre socios («quién debe a quién») y exportación CSV para la gestoría |
@@ -87,6 +88,9 @@ Valores que ya vienen puestos y solo hay que cambiar si cambia algo: `SHOPIFY_TI
 |---|---|
 | `functions/api/estadisticas.js` | Datos de la pestaña Estadísticas (Shopify, Google Analytics y Meta), en Cloudflare Pages |
 | `index.html` | La página: entrada, tareas, calendario y notas |
+| `gestion.js` | Sección Gestión: productos, clientes y el editor de presupuestos, pedidos y albaranes |
+| `documento.js` | Plantilla A4 de los documentos (cabecera y pie en cada hoja, totales, firma) |
+| `plantilla.html` | La plantilla con datos inventados, para verla o imprimirla |
 | `nube.js` | Entrada con nombre y código, y conexión con Firestore |
 | `config.js` | Configuración de Firebase, cuenta del equipo y nombres |
 | `firestore.rules` | Quién puede leer y escribir |

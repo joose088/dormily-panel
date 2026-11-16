@@ -413,6 +413,7 @@
 
 <script type="module">
 import { iniciar } from './nube.js';
+import { crearGestion, ESTILOS_GESTION } from './gestion.js';
 
 const PERSONAS = {
   jc: { n: 'José Carlos', i: 'JC' },
@@ -436,8 +437,8 @@ const CAT_INGRESO = ['Ventas', 'Aportación de socios', 'Otros ingresos'];
 const IVAS = [['21', '21 %'], ['10', '10 %'], ['4', '4 %'], ['0', 'Sin IVA']];
 const REDES = ['Instagram y TikTok', 'Instagram', 'TikTok', 'Facebook', 'YouTube'];
 const FORMATOS = ['Vídeo vertical', 'Carrusel', 'Foto', 'Historia'];
-const VISTAS = [['tareas', 'Tareas'], ['estadisticas', 'Estadísticas'], ['calendario', 'Calendario'], ['compras', 'Compras'], ['contabilidad', 'Contabilidad'], ['proveedores', 'Proveedores'], ['contenido', 'Contenido'], ['notas', 'Notas'], ['enlaces', 'Enlaces'], ['actividad', 'Actividad']];
-const COLS = ['tareas', 'eventos', 'notas', 'movimientos', 'proveedores', 'compras', 'contenido', 'enlaces'];
+const VISTAS = [['tareas', 'Tareas'], ['estadisticas', 'Estadísticas'], ['gestion', 'Gestión'], ['calendario', 'Calendario'], ['compras', 'Compras'], ['contabilidad', 'Contabilidad'], ['proveedores', 'Proveedores'], ['contenido', 'Contenido'], ['notas', 'Notas'], ['enlaces', 'Enlaces'], ['actividad', 'Actividad']];
+const COLS = ['tareas', 'eventos', 'notas', 'movimientos', 'proveedores', 'compras', 'contenido', 'enlaces', 'productos', 'clientes', 'documentos', 'ajustes'];
 const MAX_PDF = 700 * 1024;
 
 const S = {
@@ -1099,7 +1100,7 @@ function renderEstadisticas() {
 }
 
 /* ---------- Render ---------- */
-const VISTA_FN = { tareas: renderTareas, estadisticas: renderEstadisticas, calendario: renderCalendario, compras: renderCompras, contabilidad: renderContabilidad, proveedores: renderProveedores, contenido: renderContenido, notas: renderNotas, enlaces: renderEnlaces, actividad: renderActividad };
+const VISTA_FN = { tareas: renderTareas, estadisticas: renderEstadisticas, gestion: () => G.render(), calendario: renderCalendario, compras: renderCompras, contabilidad: renderContabilidad, proveedores: renderProveedores, contenido: renderContenido, notas: renderNotas, enlaces: renderEnlaces, actividad: renderActividad };
 function render() {
   renderCifras();
   renderPestanas();
@@ -1527,6 +1528,12 @@ function formEnlace(l) {
 const ABRIR = { tareas: formTarea, eventos: formEvento, compras: formCompra, movimientos: (m) => formMovimiento(m), proveedores: formProveedor, contenido: formContenido, notas: formNota, enlaces: formEnlace };
 const NUEVO = { tarea: () => formTarea(), evento: () => formEvento(null, S.vista === 'calendario' ? S.dia : hoyIso()), compra: () => formCompra(), gasto: () => formMovimiento(null, 'gasto'), ingreso: () => formMovimiento(null, 'ingreso'), pago: () => formPago(), proveedor: () => formProveedor(), contenido: () => formContenido(), nota: () => formNota(), enlace: () => formEnlace() };
 
+/* ---------- Gestión (productos, clientes y documentos) en gestion.js ---------- */
+const G = crearGestion({ S, $, esc, escribir, col, aviso, cerrar, render, euros, num, nuevoId, hoyIso, sumaDias, textoFecha, cabecera, abrirHoja, PERSONAS });
+Object.assign(ABRIR, G.abrir);
+Object.assign(NUEVO, G.nuevo);
+document.head.insertAdjacentHTML('beforeend', '<style>' + ESTILOS_GESTION + '</style>');
+
 /* ---------- Events ---------- */
 document.addEventListener('click', (e) => {
   const fila = e.target.closest('tr[data-abrir]');
@@ -1543,6 +1550,7 @@ document.addEventListener('click', (e) => {
   }
   if (b.dataset.persona) { S.persona = b.dataset.persona; guardarLocal('persona', S.persona); return render(); }
   if (b.id === 'quitar-venc') { S.soloVencidas = false; return render(); }
+  if (G.alClic(b)) return;
   if (b.dataset.abrir) { const [c, id] = b.dataset.abrir.split(':'); const x = S[c].find((y) => y.id === id); if (x) ABRIR[c](x); return; }
   if (b.dataset.nuevo) { if (S.escribir) NUEVO[b.dataset.nuevo](); return; }
   if (b.dataset.marcar) {
@@ -1572,6 +1580,7 @@ document.addEventListener('click', (e) => {
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.target.matches && e.target.matches('tr[data-abrir]')) e.target.click();
 });
+document.addEventListener('input', (e) => { if (!e.target.closest('#capa')) G.alEscribir(e); });
 document.addEventListener('change', (e) => {
   if (e.target.closest('#capa')) return;
   if (e.target.id === 'f-area') { S.area = e.target.value; render(); }
