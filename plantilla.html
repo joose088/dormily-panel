@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plantilla de documentos</title>
+<link rel="icon" href="icono.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap">
+<style>
+  :root { --fondo: #ECEAF2; --ink: #0E0E2C; --azul: #2F3BFF; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --fondo: #1A1A33; --ink: #F4F2FA; } }
+  :root[data-theme="dark"] { --fondo: #1A1A33; --ink: #F4F2FA; }
+  body { margin: 0; background: var(--fondo); color: var(--ink); font-family: 'DM Sans', system-ui, Arial, sans-serif; }
+  .barra { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; padding: 12px 16px; background: var(--fondo); }
+  .barra button { font: inherit; font-weight: 700; padding: 8px 14px; border-radius: 999px; border: 1.5px solid var(--azul); background: transparent; color: var(--ink); cursor: pointer; }
+  .barra button[aria-pressed="true"], .barra .imprimir { background: var(--azul); color: #fff; }
+  .barra label { display: inline-flex; gap: 6px; align-items: center; font-size: 14px; }
+  .hoja { padding: 8px 16px 40px; overflow-x: auto; }
+  .hoja .doc { box-shadow: 0 6px 30px rgba(14,14,44,.18); }
+  @media print { .barra { display: none; } body { background: #fff; } .hoja { padding: 0; overflow: visible; } .hoja .doc { box-shadow: none; } }
+</style>
+<style id="estilos-doc"></style>
+</head>
+<body>
+<div class="barra" role="toolbar" aria-label="Tipo de documento">
+  <button type="button" data-tipo="presupuesto" aria-pressed="true">Presupuesto</button>
+  <button type="button" data-tipo="pedido" aria-pressed="false">Pedido</button>
+  <button type="button" data-tipo="albaran" aria-pressed="false">Albarán</button>
+  <label><input type="checkbox" id="valorado"> Albarán con precios</label>
+  <button type="button" class="imprimir" id="imprimir">Imprimir o guardar PDF</button>
+</div>
+<div class="hoja" id="hoja"></div>
+<script type="module">
+import { documentoHTML, ESTILOS_DOCUMENTO } from './documento.js';
+document.getElementById('estilos-doc').textContent = ESTILOS_DOCUMENTO;
+
+// Datos de ejemplo para ver la plantilla.
+// Datos inventados, solo para ver cómo queda (un hotel que amuebla habitaciones, para que salgan varias hojas).
+const medidas = ['90 × 190', '105 × 190', '135 × 190', '150 × 190', '160 × 200'];
+const lineas = [];
+medidas.forEach((m, i) => {
+  lineas.push({ ref: 'COL-' + m.slice(0, 3).trim(), descripcion: 'Colchón Landez ' + m + ' cm', detalle: 'Núcleo: muelle ensacado y viscoelástica\nFirmeza: media\nFunda: tejido 3D desenfundable', cantidad: [12, 6, 10, 8, 4][i], precio: [289, 319, 412.4, 449, 520][i], dto1: 10, dto2: i % 2 ? 3 : 0 });
+  lineas.push({ ref: 'CAN-' + m.slice(0, 3).trim(), descripcion: 'Canapé abatible ' + m + ' cm', detalle: 'Tapa: 3D transpirable\nAcabado madera: roble natural\nAltura: 30 cm', cantidad: [12, 6, 10, 8, 4][i], precio: [215, 235, 289.26, 309, 349][i], dto1: 10 });
+});
+lineas.push({ ref: 'ALM-70', descripcion: 'Almohada viscoelástica 70 cm', detalle: 'Funda de algodón', cantidad: 40, precio: 32.23, dto1: 15 });
+lineas.push({ ref: 'MON', descripcion: 'Montaje en habitaciones y retirada de embalajes', cantidad: 1, precio: 0 });
+const base = {
+  fecha: '2026-11-16', comercial: 'José Carlos',
+  cliente: { codigo: '0001', nombre: 'Hotel Ejemplo, S.L.', nif: 'B00000000', direccion: 'Av. de la Feria, 1', localidad: '30510 Yecla (Murcia)', pais: 'España', telefono: '968 000 000', correo: 'compras@ejemplo.es', att: 'Departamento de compras' },
+  envio: { nombre: 'Hotel Ejemplo · Obra nueva', direccion: 'C/ del Mar, 25', localidad: '03001 Alicante', pais: 'España', contacto: 'Encargado de obra · 600 000 000' },
+  suReferencia: 'Reforma 2.ª planta',
+  lineas
+};
+const ejemplos = {
+  presupuesto: Object.assign({}, base, { tipo: 'presupuesto', numero: 'P-2026-0001', validoHasta: '2026-12-01', formaPago: '50 % al aceptar y 50 % antes de la entrega, por transferencia',
+    condiciones: ['Portes incluidos a península.', 'Plazo de entrega: 3 a 4 semanas desde la aceptación.', '3 años de garantía.', 'Véanse las condiciones generales de venta en landezdescanso.es.'] }),
+  pedido: Object.assign({}, base, { tipo: 'pedido', numero: 'PED-2026-0001', referencia: 'P-2026-0001', entregaPrevista: '2026-12-10', formaPago: 'Transferencia', pagado: 9000,
+    logistica: { bultos: 81, pesoBruto: 2140, volumen: 38.5 }, notas: 'Descarga en muelle de obra de 8:00 a 14:00. Avisar 24 horas antes.' }),
+  albaran: Object.assign({}, base, { tipo: 'albaran', numero: 'ALB-2026-0001', referencia: 'PED-2026-0001', fechaEntrega: '2026-12-10',
+    envio: Object.assign({}, base.envio, { transportista: 'Transportes Ejemplo', seguimiento: 'TE-000000' }),
+    logistica: { bultos: 81, pesoBruto: 2140, pesoNeto: 1985, volumen: 38.5 }, notas: 'Cualquier daño debe anotarse en este albarán.' })
+};
+
+const pedidoEnUrl = new URLSearchParams(location.search);
+let tipo = ejemplos[pedidoEnUrl.get('tipo')] ? pedidoEnUrl.get('tipo') : 'presupuesto';
+if (pedidoEnUrl.get('valorado') === '1') document.getElementById('valorado').checked = true;
+const pintar = () => {
+  const doc = Object.assign({}, ejemplos[tipo], { valorado: document.getElementById('valorado').checked });
+  document.getElementById('hoja').innerHTML = documentoHTML(doc);
+  document.title = doc.numero;
+  document.querySelectorAll('[data-tipo]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tipo === tipo)));
+};
+document.querySelectorAll('[data-tipo]').forEach((b) => b.addEventListener('click', () => { tipo = b.dataset.tipo; pintar(); }));
+document.getElementById('valorado').addEventListener('change', pintar);
+document.getElementById('imprimir').addEventListener('click', () => window.print());
+pintar();
+</script>
+</body>
+</html>
