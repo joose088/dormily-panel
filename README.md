@@ -1,6 +1,6 @@
 # Landez · Panel del equipo
 
-Web con tareas, calendario y notas para José Carlos, Alejandro y Hugo: https://dormily-panel.vercel.app
+Web con tareas, calendario y notas para José Carlos, Alejandro y Hugo: https://landezdescanso.vercel.app
 
 Para entrar, cada uno toca su nombre y escribe el **código del equipo**. El móvil lo recuerda, así que solo se escribe la primera vez.
 
@@ -35,7 +35,7 @@ El código del equipo es la contraseña de una única cuenta de Firebase, `panel
    - Contraseña: el código del equipo
 3. **Firestore Database → Reglas →** borra lo que haya, pega el contenido de `firestore.rules` y pulsa **Publicar**.
 
-Listo: abrid https://dormily-panel.vercel.app, tocad vuestro nombre y escribid el código. La primera vez que entre alguien se cargan las tareas iniciales (`semilla.js`).
+Listo: abrid https://landezdescanso.vercel.app, tocad vuestro nombre y escribid el código. La primera vez que entre alguien se cargan las tareas iniciales (`semilla.js`).
 
 En el móvil: **Añadir a pantalla de inicio** (Safari: botón Compartir; Chrome: menú ⋮) y queda como una app.
 
