@@ -1005,6 +1005,8 @@ function bloqueMeta(me) {
     graficas.push('<div class="est-graf">' + listaBarras('Lo que recibe el píxel de Meta', filas, 'El píxel todavía no ha recibido nada en este periodo.') + '</div>');
   }
   if (graficas.length) h += '<div class="est-graficas">' + graficas.join('') + '</div>';
+  if (px.sinPermiso) h += '<p class="est-pie" style="margin:12px 0 0">Lo que recibe el píxel se mira en Meta: ' +
+    '<a href="https://business.facebook.com/events_manager2/list/dataset/3314865168719686/overview?business_id=1048814831506388" target="_blank" rel="noopener">Administrador de eventos</a>.</p>';
   return h;
 }
 function renderEstadisticas() {

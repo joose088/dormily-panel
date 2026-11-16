@@ -270,10 +270,11 @@ async function alcanceInstagram(env, a, ig, dias) {
 async function datosMeta(env, a, dias) {
   if (!env.META_TOKEN) return { configurado: false };
   const pagina = await parteSegura(graphMeta(env, a, a.metaPagina, { fields: 'name,followers_count,fan_count,instagram_business_account' }));
+  if (pagina.error && /pages_read_engagement/.test(pagina.error)) pagina.error = 'Al token de Meta le falta el permiso pages_read_engagement. Hay que generarlo otra vez con ese permiso marcado.';
   const igId = a.metaIg || (pagina.instagram_business_account && pagina.instagram_business_account.id);
   const inicio = Math.floor(new Date(diasAtras(dias)[0] + 'T00:00:00Z').getTime() / 1000) - 3600;
   const [perfil, alcance, pixel] = await Promise.all([
-    igId ? parteSegura(graphMeta(env, a, igId, { fields: 'username,followers_count,media_count' })) : Promise.resolve({ error: 'No se encuentra la cuenta de Instagram unida a la página' }),
+    igId ? parteSegura(graphMeta(env, a, igId, { fields: 'username,followers_count,media_count' })) : Promise.resolve({ error: pagina.error ? 'Se busca a través de la página de Facebook, que no ha respondido.' : 'No se encuentra la cuenta de Instagram unida a la página' }),
     igId ? parteSegura(alcanceInstagram(env, a, igId, dias)) : Promise.resolve({ error: 'Sin cuenta de Instagram' }),
     parteSegura(graphMeta(env, a, a.metaDataset + '/stats', { aggregation: 'event', start_time: String(inicio), end_time: String(Math.floor(Date.now() / 1000)) }).then((d) => {
       const eventos = {};
@@ -281,11 +282,13 @@ async function datosMeta(env, a, dias) {
       return eventos;
     }))
   ]);
+  // Reading pixel stats needs an ads permission the app does not have; the panel then links to Events Manager.
+  const pixelSinPermiso = pixel.error && /missing permission|ads_read|ads_management/i.test(pixel.error);
   return {
     configurado: true,
     facebook: pagina.error ? { error: pagina.error } : { nombre: pagina.name, seguidores: pagina.followers_count ?? pagina.fan_count ?? 0 },
     instagram: perfil.error ? { error: perfil.error } : { usuario: perfil.username, seguidores: perfil.followers_count || 0, publicaciones: perfil.media_count || 0, alcancePorDia: alcance.error ? null : alcance, errorAlcance: alcance.error || null },
-    pixel: pixel.error ? { error: pixel.error } : { eventos: pixel }
+    pixel: pixelSinPermiso ? { sinPermiso: true } : pixel.error ? { error: pixel.error } : { eventos: pixel }
   };
 }
 
