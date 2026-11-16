@@ -287,6 +287,8 @@
   table.mov tr.clic:hover td { background: var(--sunk); }
   table.mov tr.pago td { color: var(--muted); font-style: italic; }
   .barra-cat { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; font-size: 13px; }
+  .rejilla-clasif { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; padding-bottom: 40px; }
+  .rejilla-clasif .panel { margin: 0; min-width: 0; }
   .barra-cat .b { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: var(--sunk); overflow: hidden; margin-bottom: 6px; }
   .barra-cat .b i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
 
@@ -434,8 +436,36 @@ const PRIORIDADES = [['alta', 'Prioridad alta'], ['media', 'Prioridad media'], [
 const EST_COMPRA = [['borrador', 'Por pedir'], ['pedido', 'Pedido enviado'], ['confirmado', 'Confirmado'], ['fabricacion', 'En fabricación'], ['listo', 'Listo para recoger'], ['recibido', 'Recibido'], ['cancelado', 'Cancelado']];
 const ABIERTA = (c) => !['recibido', 'cancelado'].includes(c.estado);
 const EST_CON = [['idea', 'Idea'], ['guion', 'Guion'], ['grabado', 'Grabado'], ['editado', 'Editado'], ['publicado', 'Publicado']];
-const CAT_GASTO = ['Producto y proveedores', 'Envíos y transporte', 'Tienda online y apps', 'Publicidad y marketing', 'Teléfono e internet', 'Gestoría y legal', 'Material y muestras', 'Otros gastos'];
-const CAT_INGRESO = ['Ventas', 'Aportación de socios', 'Otros ingresos'];
+const CAT_GASTO = ['Producto y proveedores', 'Envíos y transporte', 'Comisiones de cobro', 'Tienda online y apps', 'Publicidad y marketing', 'Teléfono e internet', 'Gestoría y legal', 'Banco e intereses', 'Material y muestras', 'Otros gastos'];
+const CAT_INGRESO = ['Ventas', 'Servicios (montaje, retirada)', 'Subvenciones y ayudas', 'Intereses y financieros', 'Aportación de socios', 'Otros ingresos'];
+// Expense classification: by variability, by relation to the product sold and by business function.
+const VARIABILIDAD = [['fijo', 'Fijo'], ['variable', 'Variable'], ['mixto', 'Mixto (parte fija y parte variable)']];
+const RELACION = [['directo', 'Directo (se asigna a un producto o pedido)'], ['indirecto', 'Indirecto (general del negocio)']];
+const FUNCION = [['aprovisionamiento', 'Aprovisionamiento (compra de producto)'], ['logistica', 'Logística y distribución'], ['comercial', 'Comercial y marketing'], ['administracion', 'Administración'], ['financiero', 'Financiero']];
+// Income classification: by nature and by recurrence. Partners' contributions are financing, not income.
+const NATURALEZA = [['explotacion', 'De la actividad (ventas y servicios)'], ['financiero', 'Financiero'], ['subvencion', 'Subvención o ayuda'], ['excepcional', 'Excepcional'], ['aportacion', 'Aportación de socios (no es ingreso)']];
+const RECURRENCIA = [['ordinario', 'Ordinario (se repite)'], ['extraordinario', 'Extraordinario (puntual)']];
+const CLASIF_POR_CAT = {
+  'Producto y proveedores': ['variable', 'directo', 'aprovisionamiento'], 'Envíos y transporte': ['variable', 'directo', 'logistica'],
+  'Comisiones de cobro': ['variable', 'directo', 'financiero'], 'Tienda online y apps': ['fijo', 'indirecto', 'comercial'],
+  'Publicidad y marketing': ['variable', 'indirecto', 'comercial'], 'Teléfono e internet': ['fijo', 'indirecto', 'administracion'],
+  'Gestoría y legal': ['fijo', 'indirecto', 'administracion'], 'Banco e intereses': ['fijo', 'indirecto', 'financiero'],
+  'Material y muestras': ['variable', 'indirecto', 'comercial'], 'Otros gastos': ['fijo', 'indirecto', 'administracion'],
+  'Ventas': ['explotacion', 'ordinario'], 'Servicios (montaje, retirada)': ['explotacion', 'ordinario'], 'Subvenciones y ayudas': ['subvencion', 'extraordinario'],
+  'Intereses y financieros': ['financiero', 'ordinario'], 'Aportación de socios': ['aportacion', 'extraordinario'], 'Otros ingresos': ['excepcional', 'extraordinario']
+};
+// What each movement is, stored or, for older ones, taken from its category.
+function clasif(m) {
+  const def = CLASIF_POR_CAT[m.categoria] || (m.tipo === 'ingreso' ? ['excepcional', 'extraordinario'] : ['fijo', 'indirecto', 'administracion']);
+  return m.tipo === 'ingreso' ? { naturaleza: m.naturaleza || def[0], recurrencia: m.recurrencia || def[1] }
+    : { variabilidad: m.variabilidad || def[0], relacion: m.relacion || def[1], funcion: m.funcion || def[2] };
+}
+const corto = (op, k) => String(etiqueta(op, k)).replace(/ \(.*\)$/, '');
+const resumenClasif = (m) => {
+  const c = clasif(m);
+  return m.tipo === 'ingreso' ? corto(NATURALEZA, c.naturaleza) + ' · ' + corto(RECURRENCIA, c.recurrencia)
+    : corto(VARIABILIDAD, c.variabilidad) + ' · ' + corto(RELACION, c.relacion) + ' · ' + corto(FUNCION, c.funcion);
+};
 const IVAS = [['21', '21 %'], ['10', '10 %'], ['4', '4 %'], ['0', 'Sin IVA']];
 const REDES = ['Instagram y TikTok', 'Instagram', 'TikTok', 'Facebook', 'YouTube'];
 const FORMATOS = ['Vídeo vertical', 'Carrusel', 'Foto', 'Historia'];
@@ -773,12 +803,24 @@ function renderCompras() {
 /* ---------- Contabilidad ---------- */
 function renderContabilidad() {
   const enP = S.movimientos.filter((m) => enPeriodo(m.fecha));
-  let ingresos = 0, gastos = 0, ivaRep = 0, ivaSop = 0;
-  const porCat = {};
+  let ingresos = 0, gastos = 0, ivaRep = 0, ivaSop = 0, aportaciones = 0, ventasActividad = 0;
+  const porCat = {}, suma = (o, k, v) => { o[k] = (o[k] || 0) + v; };
+  const porVar = {}, porRel = {}, porFun = {}, porNat = {}, porRec = {};
   enP.forEach((m) => {
-    const { cuota } = ivaDe(m);
-    if (m.tipo === 'ingreso') { ingresos += m.importe || 0; ivaRep += cuota; }
-    if (m.tipo === 'gasto') { gastos += m.importe || 0; ivaSop += cuota; porCat[m.categoria || 'Otros gastos'] = (porCat[m.categoria || 'Otros gastos'] || 0) + (m.importe || 0); }
+    const { base, cuota } = ivaDe(m);
+    if (m.tipo === 'ingreso') {
+      const c = clasif(m);
+      ivaRep += cuota;
+      // Partners' money is financing: it does not count as income or in the result.
+      if (c.naturaleza === 'aportacion') { aportaciones += m.importe || 0; return; }
+      ingresos += m.importe || 0; suma(porNat, c.naturaleza, base); suma(porRec, c.recurrencia, base);
+      if (c.naturaleza === 'explotacion') ventasActividad += base;
+    }
+    if (m.tipo === 'gasto') {
+      const c = clasif(m);
+      gastos += m.importe || 0; ivaSop += cuota; suma(porCat, m.categoria || 'Otros gastos', m.importe || 0);
+      suma(porVar, c.variabilidad, base); suma(porRel, c.relacion, base); suma(porFun, c.funcion, base);
+    }
   });
   const resultado = ingresos - gastos;
   const periodos = [['mes', 'Este mes'], ['trimestre', 'Este trimestre'], ['anio', 'Este año'], ['todo', 'Todo']];
@@ -816,28 +858,52 @@ function renderContabilidad() {
     return '<tr class="clic' + (m.tipo === 'pago' ? ' pago' : '') + '" data-abrir="movimientos:' + esc(m.id) + '" tabindex="0">' +
       '<td>' + esc(textoFecha(m.fecha)) + '</td>' +
       '<td><b>' + esc(m.concepto) + '</b>' + (m.contraparte || m.numeroFactura ? '<br><span style="color:var(--muted);font-size:12.5px">' + esc([m.contraparte, m.numeroFactura ? 'Fra. ' + m.numeroFactura : ''].filter(Boolean).join(' · ')) + '</span>' : '') + '</td>' +
-      '<td>' + esc(m.tipo === 'pago' ? 'Pago entre socios' : (m.categoria || '')) + '</td>' +
+      '<td>' + esc(m.tipo === 'pago' ? 'Pago entre socios' : (m.categoria || '')) + (m.tipo === 'pago' ? '' : '<br><span style="color:var(--muted);font-size:12px">' + esc(resumenClasif(m)) + '</span>') + '</td>' +
       '<td>' + esc(m.tipo === 'pago' ? nombre(m.pagadoPor) + ' → ' + nombre((m.reparto || [])[0]) : nombre(m.pagadoPor)) + '</td>' +
       '<td class="num">' + (m.tipo === 'pago' ? '' : euros(base)) + '</td>' +
       '<td class="num">' + (m.tipo === 'pago' ? '' : euros(cuota)) + '</td>' +
       '<td class="num" style="color:' + color + ';font-weight:700">' + signo + euros(m.importe) + '</td>' +
       '<td class="num">' + (adj ? adj + ' 📎' : (m.enlace ? 'Enlace' : '')) + '</td></tr>';
   }).join('');
-  const maxCat = Math.max(1, ...Object.values(porCat));
-  const cats = Object.entries(porCat).sort((a, b) => b[1] - a[1]).map(([c, v]) => '<span>' + esc(c) + '</span><b class="num">' + euros(v) + '</b><span class="b"><i style="width:' + Math.round((v / maxCat) * 100) + '%"></i></span>').join('');
+  // Bars for a breakdown; op turns keys into names (none for categories).
+  const barras = (o, op) => {
+    const max = Math.max(1, ...Object.values(o));
+    return Object.entries(o).sort((a, b) => b[1] - a[1]).map(([c, v]) => '<span>' + esc(op ? corto(op, c) : c) + '</span><b class="num">' + euros(v) + '</b><span class="b"><i style="width:' + Math.round((v / max) * 100) + '%"></i></span>').join('');
+  };
+  const cats = barras(porCat);
+  const sinNada = (t) => '<p style="margin:0;color:var(--muted);font-size:14px">' + t + '</p>';
+  const bloque = (titulo, o, op, vacio, pie) => '<div class="panel"><h3>' + titulo + '</h3>' + (Object.keys(o).length ? '<div class="barra-cat">' + barras(o, op) + '</div>' : sinNada(vacio)) + (pie || '') + '</div>';
+  // Contribution margin: activity sales minus variable costs (mixed costs count half as an estimate), both without VAT.
+  const variables = (porVar.variable || 0) + (porVar.mixto || 0) / 2;
+  const margen = ventasActividad - variables;
+  const pieMargen = ventasActividad || variables ? '<p style="margin:10px 0 0;font-size:13.5px">Margen de contribución: <b>' + euros(margen) + '</b>' +
+    (ventasActividad ? ' (' + fPct.format(margen / ventasActividad) + ' de las ventas)' : '') + '<br><span style="color:var(--muted);font-size:12.5px">Ventas de la actividad menos gastos variables, sin IVA. Los mixtos cuentan la mitad.</span></p>' : '';
+  const clasificaciones = '<h3 class="grupo-titulo" style="margin-top:22px">Gastos e ingresos clasificados <span class="n">sin IVA, en este periodo</span></h3><div class="rejilla-clasif">' +
+    bloque('Gastos por variabilidad', porVar, VARIABILIDAD, 'Sin gastos en este periodo.', pieMargen) +
+    bloque('Gastos por relación con el producto', porRel, RELACION, 'Sin gastos en este periodo.') +
+    bloque('Gastos por función', porFun, FUNCION, 'Sin gastos en este periodo.') +
+    bloque('Ingresos por tipo', porNat, NATURALEZA, 'Sin ingresos en este periodo.',
+      aportaciones ? '<p style="margin:10px 0 0;font-size:13.5px;color:var(--muted)">Aportaciones de socios (fuera de ingresos): <b style="color:var(--ink)">' + euros(aportaciones) + '</b></p>' : '') +
+    bloque('Ingresos por recurrencia', porRec, RECURRENCIA, 'Sin ingresos en este periodo.') + '</div>';
   html += '<div class="dos-col"><div style="min-width:0"><div class="filtros">' + tipos.map(([k, n]) => '<button class="chip" type="button" data-chipmov="' + k + '" aria-pressed="' + (S.filtroMov === k) + '">' + n + '</button>').join('') + '</div>' +
     (!S.listo.movimientos ? '<div class="vacio">Cargando movimientos…</div>' : lista.length ?
       '<div class="tabla-wrap"><table class="mov"><thead><tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th>Quién</th><th class="num">Base</th><th class="num">IVA</th><th class="num">Total</th><th class="num">Factura</th></tr></thead><tbody>' + filas + '</tbody></table></div>' :
       '<div class="vacio">No hay movimientos en este periodo. Apunta el primero con «+ Gasto» o «+ Ingreso».</div>') +
-    '</div><div class="panel"><h3>Gastos por categoría</h3>' + (cats ? '<div class="barra-cat">' + cats + '</div>' : '<p style="margin:0;color:var(--muted);font-size:14px">Sin gastos en este periodo.</p>') + '</div></div>';
+    '</div><div class="panel"><h3>Gastos por categoría</h3>' + (cats ? '<div class="barra-cat">' + cats + '</div>' : sinNada('Sin gastos en este periodo.')) + '</div></div>' + clasificaciones;
   return html;
 }
 function exportarCSV() {
   const lista = S.movimientos.filter((m) => enPeriodo(m.fecha)).sort((a, b) => (a.fecha || '').localeCompare(b.fecha || ''));
   if (!lista.length) { aviso('No hay movimientos en este periodo.'); return; }
   const n2 = (v) => fNum.format(v || 0).replace(/\./g, '');
-  const cab = ['Fecha', 'Tipo', 'Concepto', 'Proveedor o cliente', 'Nº factura', 'Categoría', 'Base', 'IVA %', 'Cuota IVA', 'Total', 'Pagado o cobrado por', 'Reparto', 'Facturas adjuntas', 'Notas'];
-  const filas = lista.map((m) => { const { base, cuota } = ivaDe(m); return [m.fecha, m.tipo === 'pago' ? 'Pago entre socios' : m.tipo === 'ingreso' ? 'Ingreso' : 'Gasto', m.concepto, m.contraparte, m.numeroFactura, m.categoria, n2(base), m.iva || '0', n2(cuota), n2(m.importe), nombre(m.pagadoPor), (m.reparto || []).map(nombre).join(' + '), (m.adjuntos || []).length, m.notas]; });
+  const cab = ['Fecha', 'Tipo', 'Concepto', 'Proveedor o cliente', 'Nº factura', 'Categoría', 'Variabilidad', 'Relación con el producto', 'Función', 'Tipo de ingreso', 'Recurrencia', 'Base', 'IVA %', 'Cuota IVA', 'Total', 'Pagado o cobrado por', 'Reparto', 'Facturas adjuntas', 'Notas'];
+  const filas = lista.map((m) => {
+    const { base, cuota } = ivaDe(m);
+    const c = m.tipo === 'pago' ? {} : clasif(m);
+    const cl = m.tipo === 'gasto' ? [corto(VARIABILIDAD, c.variabilidad), corto(RELACION, c.relacion), corto(FUNCION, c.funcion), '', '']
+      : m.tipo === 'ingreso' ? ['', '', '', corto(NATURALEZA, c.naturaleza), corto(RECURRENCIA, c.recurrencia)] : ['', '', '', '', ''];
+    return [m.fecha, m.tipo === 'pago' ? 'Pago entre socios' : m.tipo === 'ingreso' ? 'Ingreso' : 'Gasto', m.concepto, m.contraparte, m.numeroFactura, m.categoria, ...cl, n2(base), m.iva || '0', n2(cuota), n2(m.importe), nombre(m.pagadoPor), (m.reparto || []).map(nombre).join(' + '), (m.adjuntos || []).length, m.notas];
+  });
   const csv = '﻿' + [cab].concat(filas).map((f) => f.map((v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"').join(';')).join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
@@ -1398,6 +1464,15 @@ function formMovimiento(m, tipo) {
     { n: 'iva', l: 'IVA incluido', t: 'select', op: IVAS },
     { n: 'fecha', l: 'Fecha', t: 'date', req: true },
     { n: 'categoria', l: 'Categoría', t: 'select', op: esGasto ? CAT_GASTO : CAT_INGRESO },
+    { n: 'sepClas', l: esGasto ? 'Clasificación del gasto (se pone sola según la categoría; cámbiala si no encaja)' : 'Tipo de ingreso (se pone solo según la categoría)', t: 'sep' },
+    ...(esGasto ? [
+      { n: 'variabilidad', l: 'Según su variabilidad', t: 'select', op: VARIABILIDAD },
+      { n: 'relacion', l: 'Según su relación con el producto', t: 'select', op: RELACION },
+      { n: 'funcion', l: 'Según su función', t: 'select', op: FUNCION }
+    ] : [
+      { n: 'naturaleza', l: 'Según su naturaleza', t: 'select', op: NATURALEZA },
+      { n: 'recurrencia', l: 'Según si se repite', t: 'select', op: RECURRENCIA }
+    ]),
     { n: 'contraparte', l: esGasto ? 'Proveedor' : 'Cliente', max: 120 },
     { n: 'numeroFactura', l: 'Nº de factura', max: 60 },
     { n: 'pagadoPor', l: esGasto ? 'Lo ha pagado' : 'Lo ha cobrado', t: 'select', op: quien, ancho: true },
@@ -1406,10 +1481,19 @@ function formMovimiento(m, tipo) {
     { n: 'notas', l: 'Notas', t: 'textarea', ancho: true }
   ];
   const zona = zonaAdjuntos(m.adjuntos, 'Facturas y tickets', 'Sin facturas adjuntas.');
+  const claves = esGasto ? ['variabilidad', 'relacion', 'funcion'] : ['naturaleza', 'recurrencia'];
   abrirHoja({
-    titulo: (nuevo ? 'Nuevo ' : '') + (esGasto ? 'gasto' : 'ingreso'), campos, valores: m, extra: zona.html,
-    alMontar() { zona.montar(); },
+    titulo: (nuevo ? 'Nuevo ' : '') + (esGasto ? 'gasto' : 'ingreso'), campos, valores: Object.assign({}, clasif(m), m), extra: zona.html,
+    alMontar(form) {
+      zona.montar();
+      // Changing the category proposes its usual classification.
+      form.elements.categoria.addEventListener('change', () => {
+        const def = CLASIF_POR_CAT[form.elements.categoria.value];
+        if (def) claves.forEach((k, i) => { if (form.elements[k]) form.elements[k].value = def[i]; });
+      });
+    },
     async alGuardar(d) {
+      delete d.sepClas;
       if (!d.reparto.length) { aviso('Elige al menos un socio en el reparto.'); return false; }
       if (d.enlace) { d.enlace = urlSegura(d.enlace); }
       const id = nuevo ? nuevoId() : m.id;
