@@ -159,6 +159,8 @@
   .notas { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; padding-bottom: 40px; padding-top: 10px; }
   .nota { background: var(--surface); border-radius: 16px; box-shadow: var(--sombra); padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
   .nota.fijada { outline: 2px solid var(--rosa); outline-offset: -2px; }
+  .nota-adj { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .nota-adj .mini { overflow-wrap: anywhere; text-align: left; }
   .nota h3 { font-family: var(--f-display); font-size: 14.5px; margin: 0; line-height: 1.3; overflow-wrap: anywhere; }
   .nota .txt { white-space: pre-wrap; font-size: 14px; overflow-wrap: anywhere; }
   .nota .pie { margin-top: auto; display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); }
@@ -911,6 +913,7 @@ function renderNotas() {
   const cuerpo = !S.listo.notas ? '<div class="vacio">Cargando notas…</div>' : !lista.length ? '<div class="vacio">Aquí van acuerdos, contactos y decisiones. Crea la primera con «+ Nota».</div>' :
     '<div class="notas">' + lista.map((n) => '<article class="nota' + (n.fijada ? ' fijada' : '') + '">' + (n.fijada ? '<span class="fijo">Fijada</span>' : '') +
       '<h3>' + esc(n.titulo) + '</h3><div class="txt">' + esc(n.texto) + '</div>' +
+      ((n.adjuntos || []).length ? '<div class="nota-adj">' + n.adjuntos.map((a, i) => '<button type="button" class="mini" data-ver-adj="' + esc(n.id) + ':' + i + '"><span aria-hidden="true">📎</span> ' + esc(a.nombre) + '</button>').join('') + '</div>' : '') +
       '<div class="pie">' + personaHtml(n.autor) + '<span>' + esc(n.fecha ? textoFecha(n.fecha.slice(0, 10)) : '') + '</span>' +
       (S.escribir ? '<button type="button" data-abrir="notas:' + esc(n.id) + '">Editar</button>' : '') + '</div></article>').join('') + '</div>';
   return cabecera('Notas', '', '<button class="btn primario" type="button" data-nuevo="nota">+ Nota</button>') + cuerpo;
@@ -1336,8 +1339,52 @@ async function verAdjunto(a, local) {
     const blob = await (await fetch(datos)).blob();
     const url = URL.createObjectURL(blob);
     if (w) w.location = url; else { const x = document.createElement('a'); x.href = url; x.download = a.nombre; x.click(); }
-  } catch (e) { if (w) w.close(); aviso('No se ha podido abrir la factura.'); }
+  } catch (e) { if (w) w.close(); aviso('No se ha podido abrir el archivo.'); }
 }
+// Attachment box shared by expenses and notes: lists, adds and removes files; save() writes them under «adjuntos».
+function zonaAdjuntos(existentesIni, titulo, vacio) {
+  const existentes = (existentesIni || []).slice(), nuevos = [], quitados = [];
+  const html = '<div class="campo ancho"><span class="lbl">' + esc(titulo) + '</span><ul class="pasos" id="adjuntos"></ul>' +
+    (S.escribir ? '<label class="btn" style="justify-self:start;cursor:pointer">Adjuntar foto o PDF<input type="file" id="adj-input" accept="image/*,application/pdf" multiple hidden></label><span style="font-size:12.5px;color:var(--muted)">Las fotos se reducen solas. PDF hasta 700 KB.</span>' : '') + '</div>';
+  function pintar() {
+    const todos = existentes.map((a) => ({ a, local: null })).concat(nuevos.map((a) => ({ a, local: a })));
+    $('adjuntos').innerHTML = todos.length ? todos.map(({ a, local }, i) => '<li><span aria-hidden="true">📎</span><span><button type="button" class="mini" data-ver="' + i + '">' + esc(a.nombre) + '</button> <span style="color:var(--muted);font-size:12px">' + Math.max(1, Math.round((a.tamano || 0) / 1024)) + ' KB' + (local ? ' · sin guardar' : '') + '</span></span>' +
+      (S.escribir ? '<button type="button" data-quitar-adj="' + i + '" aria-label="Quitar">×</button>' : '') + '</li>').join('') : '<li style="color:var(--muted);font-size:13px">' + esc(vacio) + '</li>';
+    $('adjuntos').onclick = (e) => {
+      const ver = e.target.closest('[data-ver]'); const q = e.target.closest('[data-quitar-adj]');
+      if (ver) { const x = todos[Number(ver.dataset.ver)]; verAdjunto(x.a, x.local); }
+      if (q) {
+        const i = Number(q.dataset.quitarAdj);
+        if (i < existentes.length) quitados.push(existentes.splice(i, 1)[0]); else nuevos.splice(i - existentes.length, 1);
+        pintar();
+      }
+    };
+  }
+  return {
+    html, nuevos: () => nuevos.length,
+    montar() {
+      pintar();
+      const inp = $('adj-input');
+      if (inp) inp.addEventListener('change', async () => {
+        for (const f of Array.from(inp.files || [])) {
+          try { nuevos.push(await prepararArchivo(f)); } catch (err) { aviso(err.message); }
+        }
+        inp.value = '';
+        pintar();
+      });
+    },
+    // Writes new files, deletes removed ones and returns the list to keep on the parent, or null if a write failed.
+    async guardar(padre) {
+      for (const a of nuevos) {
+        const ok = await escribir(() => col('adjuntos').doc(a.id).set(Object.assign({ nombre: a.nombre, tipo: a.tipo, tamano: a.tamano, datos: a.datos, fecha: new Date().toISOString(), subidoPor: S.yo }, padre)));
+        if (!ok) return null;
+      }
+      for (const a of quitados) await escribir(() => col('adjuntos').doc(a.id).delete());
+      return existentes.concat(nuevos.map((a) => ({ id: a.id, nombre: a.nombre, tipo: a.tipo, tamano: a.tamano })));
+    }
+  };
+}
+const borrarAdjuntos = async (lista) => { for (const a of (lista || [])) await escribir(() => col('adjuntos').doc(a.id).delete()); };
 function formMovimiento(m, tipo) {
   const nuevo = !m;
   tipo = m ? m.tipo : tipo;
@@ -1358,55 +1405,24 @@ function formMovimiento(m, tipo) {
     { n: 'enlace', l: 'Enlace a la factura (opcional, por ejemplo de Drive)', ancho: true, max: 500 },
     { n: 'notas', l: 'Notas', t: 'textarea', ancho: true }
   ];
-  const existentes = (m.adjuntos || []).slice();
-  const nuevos = [];
-  const quitados = [];
-  const extra = '<div class="campo ancho"><span class="lbl">Facturas y tickets</span><ul class="pasos" id="adjuntos"></ul>' +
-    (S.escribir ? '<label class="btn" style="justify-self:start;cursor:pointer">Adjuntar foto o PDF<input type="file" id="adj-input" accept="image/*,application/pdf" multiple hidden></label><span style="font-size:12.5px;color:var(--muted)">Las fotos se reducen solas. PDF hasta 700 KB.</span>' : '') + '</div>';
+  const zona = zonaAdjuntos(m.adjuntos, 'Facturas y tickets', 'Sin facturas adjuntas.');
   abrirHoja({
-    titulo: (nuevo ? 'Nuevo ' : '') + (esGasto ? 'gasto' : 'ingreso'), campos, valores: m, extra,
-    alMontar() {
-      const pintar = () => {
-        const todos = existentes.map((a) => ({ a, local: null })).concat(nuevos.map((a) => ({ a, local: a })));
-        $('adjuntos').innerHTML = todos.length ? todos.map(({ a, local }, i) => '<li><span aria-hidden="true">📎</span><span><button type="button" class="mini" data-ver="' + i + '">' + esc(a.nombre) + '</button> <span style="color:var(--muted);font-size:12px">' + Math.max(1, Math.round((a.tamano || 0) / 1024)) + ' KB' + (local ? ' · sin guardar' : '') + '</span></span>' +
-          (S.escribir ? '<button type="button" data-quitar-adj="' + i + '" aria-label="Quitar">×</button>' : '') + '</li>').join('') : '<li style="color:var(--muted);font-size:13px">Sin facturas adjuntas.</li>';
-        $('adjuntos').onclick = (e) => {
-          const ver = e.target.closest('[data-ver]'); const q = e.target.closest('[data-quitar-adj]');
-          if (ver) { const x = todos[Number(ver.dataset.ver)]; verAdjunto(x.a, x.local); }
-          if (q) {
-            const i = Number(q.dataset.quitarAdj);
-            if (i < existentes.length) quitados.push(existentes.splice(i, 1)[0]); else nuevos.splice(i - existentes.length, 1);
-            pintar();
-          }
-        };
-      };
-      pintar();
-      const inp = $('adj-input');
-      if (inp) inp.addEventListener('change', async () => {
-        for (const f of Array.from(inp.files || [])) {
-          try { nuevos.push(await prepararArchivo(f)); } catch (err) { aviso(err.message); }
-        }
-        inp.value = '';
-        pintar();
-      });
-    },
+    titulo: (nuevo ? 'Nuevo ' : '') + (esGasto ? 'gasto' : 'ingreso'), campos, valores: m, extra: zona.html,
+    alMontar() { zona.montar(); },
     async alGuardar(d) {
       if (!d.reparto.length) { aviso('Elige al menos un socio en el reparto.'); return false; }
       if (d.enlace) { d.enlace = urlSegura(d.enlace); }
       const id = nuevo ? nuevoId() : m.id;
-      const meta = existentes.concat(nuevos.map((a) => ({ id: a.id, nombre: a.nombre, tipo: a.tipo, tamano: a.tamano })));
-      for (const a of nuevos) {
-        const ok = await escribir(() => col('adjuntos').doc(a.id).set({ nombre: a.nombre, tipo: a.tipo, tamano: a.tamano, datos: a.datos, movimiento: id, fecha: new Date().toISOString(), subidoPor: S.yo }));
-        if (!ok) return false;
-      }
-      for (const a of quitados) await escribir(() => col('adjuntos').doc(a.id).delete());
+      const conFactura = zona.nuevos() > 0;
+      const meta = await zona.guardar({ movimiento: id });
+      if (!meta) return false;
       const cuerpo = Object.assign(d, { tipo, adjuntos: meta, actualizado: new Date().toISOString() });
       const txt = (esGasto ? 'un gasto de ' : 'un ingreso de ') + euros(d.importe) + ' («' + d.concepto + '»)';
-      if (nuevo) return escribir(() => col('movimientos').doc(id).set(Object.assign(cuerpo, { creado: new Date().toISOString(), creadoPor: S.yo })), esGasto ? 'Gasto apuntado' : 'Ingreso apuntado', 'apuntó ' + txt + (nuevos.length ? ' con factura' : ''));
+      if (nuevo) return escribir(() => col('movimientos').doc(id).set(Object.assign(cuerpo, { creado: new Date().toISOString(), creadoPor: S.yo })), esGasto ? 'Gasto apuntado' : 'Ingreso apuntado', 'apuntó ' + txt + (conFactura ? ' con factura' : ''));
       return escribir(() => col('movimientos').doc(id).update(cuerpo), 'Guardado', 'editó ' + txt);
     },
     alBorrar: nuevo ? null : async () => {
-      for (const a of (m.adjuntos || [])) await escribir(() => col('adjuntos').doc(a.id).delete());
+      await borrarAdjuntos(m.adjuntos);
       return escribir(() => col('movimientos').doc(m.id).delete(), 'Eliminado', 'borró ' + (esGasto ? 'el gasto' : 'el ingreso') + ' «' + m.concepto + '»');
     }
   });
@@ -1496,14 +1512,23 @@ function formNota(n) {
     { n: 'autor', l: 'Quién la escribe', t: 'select', op: Object.keys(PERSONAS).map((k) => [k, PERSONAS[k].n]) },
     { n: 'fijada', l: 'Fijar arriba', t: 'check' }
   ];
+  const zona = zonaAdjuntos(n.adjuntos, 'Archivos', 'Sin archivos.');
   abrirHoja({
-    titulo: nueva ? 'Nueva nota' : 'Nota', campos, valores: n,
-    alGuardar(d) {
+    titulo: nueva ? 'Nueva nota' : 'Nota', campos, valores: n, extra: zona.html,
+    alMontar() { zona.montar(); },
+    async alGuardar(d) {
       d.fecha = n.fecha || new Date().toISOString();
-      if (nueva) return escribir(() => col('notas').add(d), 'Nota creada', 'creó la nota «' + d.titulo + '»');
+      const id = nueva ? nuevoId() : n.id;
+      const meta = await zona.guardar({ nota: id });
+      if (!meta) return false;
+      d.adjuntos = meta;
+      if (nueva) return escribir(() => col('notas').doc(id).set(d), 'Nota creada', 'creó la nota «' + d.titulo + '»');
       return escribir(() => col('notas').doc(n.id).update(d), 'Nota guardada', 'editó la nota «' + d.titulo + '»');
     },
-    alBorrar: nueva ? null : () => escribir(() => col('notas').doc(n.id).delete(), 'Nota eliminada', 'borró la nota «' + n.titulo + '»')
+    alBorrar: nueva ? null : async () => {
+      await borrarAdjuntos(n.adjuntos);
+      return escribir(() => col('notas').doc(n.id).delete(), 'Nota eliminada', 'borró la nota «' + n.titulo + '»');
+    }
   });
 }
 function formEnlace(l) {
@@ -1553,6 +1578,7 @@ document.addEventListener('click', (e) => {
   if (b.dataset.persona) { S.persona = b.dataset.persona; guardarLocal('persona', S.persona); return render(); }
   if (b.id === 'quitar-venc') { S.soloVencidas = false; return render(); }
   if (G.alClic(b)) return;
+  if (b.dataset.verAdj) { const [id, i] = b.dataset.verAdj.split(':'); const n = S.notas.find((y) => y.id === id); const a = n && (n.adjuntos || [])[Number(i)]; if (a) verAdjunto(a); return; }
   if (b.dataset.abrir) { const [c, id] = b.dataset.abrir.split(':'); const x = S[c].find((y) => y.id === id); if (x) ABRIR[c](x); return; }
   if (b.dataset.nuevo) { if (S.escribir) NUEVO[b.dataset.nuevo](); return; }
   if (b.dataset.marcar) {
