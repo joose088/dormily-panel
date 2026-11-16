@@ -21,6 +21,7 @@ const ajustes = (env) => ({
   metaVersion: env.META_VERSION || 'v23.0',
   metaPagina: env.META_PAGINA || '1412410575299118',
   metaIg: env.META_IG || '',
+  metaPortfolio: env.META_PORTFOLIO || '1048814831506388',
   metaDataset: env.META_DATASET || '3314865168719686'
 });
 
@@ -267,11 +268,22 @@ async function alcanceInstagram(env, a, ig, dias) {
   return porDia;
 }
 
+// When the Page does not report its Instagram, look for the one the portfolio owns.
+async function igDelPortfolio(env, a) {
+  for (const borde of ['owned_instagram_accounts', 'instagram_accounts']) {
+    const d = await parteSegura(graphMeta(env, a, a.metaPortfolio + '/' + borde, { fields: 'id,username' }));
+    const cuenta = !d.error && (d.data || [])[0];
+    if (cuenta) return cuenta.id;
+  }
+  return '';
+}
+
 async function datosMeta(env, a, dias) {
   if (!env.META_TOKEN) return { configurado: false };
-  const pagina = await parteSegura(graphMeta(env, a, a.metaPagina, { fields: 'name,followers_count,fan_count,instagram_business_account' }));
+  const pagina = await parteSegura(graphMeta(env, a, a.metaPagina, { fields: 'name,followers_count,fan_count,instagram_business_account,connected_instagram_account' }));
   if (pagina.error && /pages_read_engagement/.test(pagina.error)) pagina.error = 'Al token de Meta le falta el permiso pages_read_engagement. Hay que generarlo otra vez con ese permiso marcado.';
-  const igId = a.metaIg || (pagina.instagram_business_account && pagina.instagram_business_account.id);
+  const igId = a.metaIg || (pagina.instagram_business_account && pagina.instagram_business_account.id) ||
+    (pagina.connected_instagram_account && pagina.connected_instagram_account.id) || await igDelPortfolio(env, a);
   const inicio = Math.floor(new Date(diasAtras(dias)[0] + 'T00:00:00Z').getTime() / 1000) - 3600;
   const [perfil, alcance, pixel] = await Promise.all([
     igId ? parteSegura(graphMeta(env, a, igId, { fields: 'username,followers_count,media_count' })) : Promise.resolve({ error: pagina.error ? 'Se busca a través de la página de Facebook, que no ha respondido.' : 'No se encuentra la cuenta de Instagram unida a la página' }),

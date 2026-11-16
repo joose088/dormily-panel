@@ -80,7 +80,7 @@ En el proyecto de Pages: **Configuración → Variables y secretos → Agregar**
 
 Después **Implementaciones → Volver a implementar** la última. Borra el `.json` de tu ordenador cuando esté pegado. Ni las claves ni el archivo van nunca a GitHub.
 
-Valores que ya vienen puestos y solo hay que cambiar si cambia algo: `SHOPIFY_TIENDA` (`de800h-ms.myshopify.com`), `SHOPIFY_VERSION` (`2026-10`), `GA_PROPIEDAD` (`564410947`), `FIREBASE_PROYECTO` (`dormily-panel`), `CUENTA_EQUIPO` (`panel@dormily.es`), `META_VERSION` (`v23.0`), `META_PAGINA` (`1412410575299118`), `META_DATASET` (`3314865168719686`), `META_IG` (vacío: se toma el Instagram unido a la página).
+Valores que ya vienen puestos y solo hay que cambiar si cambia algo: `SHOPIFY_TIENDA` (`de800h-ms.myshopify.com`), `SHOPIFY_VERSION` (`2026-10`), `GA_PROPIEDAD` (`564410947`), `FIREBASE_PROYECTO` (`dormily-panel`), `CUENTA_EQUIPO` (`panel@dormily.es`), `META_VERSION` (`v23.0`), `META_PAGINA` (`1412410575299118`), `META_DATASET` (`3314865168719686`), `META_PORTFOLIO` (`1048814831506388`), `META_IG` (vacío: se toma el Instagram unido a la página o, si no, el del portfolio).
 
 ## Archivos
 | Archivo | Para qué |
