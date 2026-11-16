@@ -149,9 +149,9 @@ export function documentoHTML(doc, empresa = EMPRESA) {
 
 // Estilos de la hoja. Van aparte para poder meterlos en la ventana de impresión del panel.
 export const ESTILOS_DOCUMENTO = `
-.doc { --azul: #2F3BFF; --chicle: #FF7AB6; --nata: #FFF6EC; --noche: #0E0E2C; --suave: #4B4B66; --raya: #E4E1EC;
-  width: 210mm; min-height: 297mm; margin: 0 auto; padding: 12mm 12mm 10mm; background: #fff; color: var(--noche);
-  font-family: 'DM Sans', system-ui, Arial, sans-serif; font-size: 9.5pt; line-height: 1.35; box-sizing: border-box; }
+.doc { --tinta: #000; --gris: #555; --linea: #BBB; --fina: #E2E2E2;
+  width: 210mm; min-height: 297mm; margin: 0 auto; padding: 12mm 14mm 10mm; background: #fff; color: var(--tinta);
+  font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif; font-size: 9pt; line-height: 1.35; box-sizing: border-box; }
 .doc *, .doc *::before, .doc *::after { box-sizing: border-box; }
 .doc h3 { margin: 0; }
 .doc dl, .doc dd, .doc p, .doc ul, .doc address { margin: 0; font-style: normal; }
@@ -160,80 +160,73 @@ export const ESTILOS_DOCUMENTO = `
 
 /* Cabecera repetida */
 .cab { display: flex; justify-content: space-between; align-items: flex-start; gap: 10mm; }
-.doc .logo { width: 46mm; height: auto; }
-.cab address { text-align: right; font-size: 8.5pt; color: var(--suave); line-height: 1.4; }
-.cab address b { color: var(--noche); }
-.tira { display: flex; align-items: baseline; gap: 4mm; margin: 5mm 0 5mm; padding: 2.2mm 4mm; background: var(--noche); color: #fff; border-radius: 2mm; font-size: 9pt; }
-.tira .tipo { font-family: 'Unbounded', 'Arial Black', sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; font-size: 9pt; }
-.tira .num { font-weight: 700; font-variant-numeric: tabular-nums; }
-.tira .cli { margin-left: auto; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80mm; }
-.tira mark.hueco { color: #B0004F; }
+.doc .logo { width: 40mm; height: auto; }
+.cab address { text-align: right; font-size: 8pt; color: var(--gris); line-height: 1.45; }
+.cab address b { color: var(--tinta); }
+.tira { display: flex; align-items: baseline; gap: 5mm; margin: 5mm 0 5mm; padding: 2mm 0; border-top: 1.5px solid var(--tinta); border-bottom: 0.5px solid var(--linea); font-size: 9pt; }
+.tira .tipo { font-weight: 700; text-transform: uppercase; letter-spacing: .08em; font-size: 10pt; }
+.tira .num { font-weight: 700; }
+.tira .cli { margin-left: auto; color: var(--gris); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80mm; }
 
 /* Datos de la primera hoja */
-.partes { display: grid; grid-template-columns: 0.9fr 1fr 1fr; gap: 4mm; margin-bottom: 6mm; }
-.caja { border: 1px solid var(--raya); border-top: 2.5px solid var(--azul); border-radius: 2mm; padding: 3mm 3.5mm; }
-.caja h3 { display: flex; justify-content: space-between; gap: 2mm; font-family: 'Unbounded', 'Arial Black', sans-serif; font-size: 7.5pt; text-transform: uppercase; letter-spacing: .08em; color: var(--azul); margin-bottom: 2mm; }
-.caja h3 .cod { font-family: 'DM Sans', system-ui, Arial, sans-serif; color: var(--suave); letter-spacing: 0; text-transform: none; font-weight: 500; }
+.partes { display: grid; grid-template-columns: 0.9fr 1fr 1fr; gap: 5mm; margin-bottom: 6mm; }
+.caja { border: 0.5px solid var(--linea); padding: 2.5mm 3mm; }
+.caja h3 { display: flex; justify-content: space-between; gap: 2mm; font-size: 7.5pt; text-transform: uppercase; letter-spacing: .08em; color: var(--gris); font-weight: 700; margin-bottom: 1.8mm; padding-bottom: 1.2mm; border-bottom: 0.5px solid var(--fina); }
+.caja h3 .cod { text-transform: none; letter-spacing: 0; font-weight: 400; }
 .caja .dir { margin-bottom: 1.5mm; }
 .caja dl div { display: flex; gap: 2mm; }
-.caja dt { color: var(--suave); white-space: nowrap; min-width: 15mm; }
+.caja dt { color: var(--gris); white-space: nowrap; min-width: 15mm; }
 .caja-doc dt { min-width: 22mm; }
-.caja-doc dd { font-weight: 700; font-variant-numeric: tabular-nums; }
+.caja-doc dd { font-weight: 700; }
 .caja-doc dl div:first-child dd { white-space: nowrap; }
 
 /* Líneas */
 table.lineas { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-.lineas thead th { text-align: left; font-size: 7.5pt; text-transform: uppercase; letter-spacing: .06em; color: #fff; background: var(--azul); font-weight: 700; padding: 2mm 2mm; }
-.lineas thead th:first-child { border-radius: 1.5mm 0 0 1.5mm; }
-.lineas thead th:last-child { border-radius: 0 1.5mm 1.5mm 0; }
-.lineas td { padding: 2.6mm 2mm; border-bottom: 1px solid var(--raya); vertical-align: top; }
+.lineas thead th { text-align: left; font-size: 7.5pt; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; padding: 1.8mm 2mm; border-top: 1px solid var(--tinta); border-bottom: 1px solid var(--tinta); }
+.lineas td { padding: 2.4mm 2mm; border-bottom: 0.5px solid var(--fina); vertical-align: top; }
 .lineas tr { break-inside: avoid; }
 .lineas .num { text-align: right; white-space: nowrap; }
 .lineas th.num { text-align: right; }
 .lineas .art { width: 20mm; }
-.lineas td.art { color: var(--suave); font-size: 8.5pt; }
+.lineas td.art { color: var(--gris); }
 .lineas .foto { width: 18mm; padding-right: 0; }
 .lineas .foto img { width: 16mm; height: 16mm; object-fit: contain; display: block; }
 .lineas .desc b { font-weight: 700; }
-.lineas .det { display: block; color: var(--suave); font-size: 8.5pt; padding-left: 3mm; }
-.lineas .imp { font-weight: 700; }
-.lineas .incluido { color: var(--azul); font-weight: 700; }
-.lineas .vacio { color: var(--suave); text-align: center; }
+.lineas .det { display: block; color: var(--gris); font-size: 8pt; padding-left: 3mm; }
+.lineas .incluido { font-style: italic; }
+.lineas .vacio { color: var(--gris); text-align: center; }
 
 /* Cierre */
-.cierre { display: flex; gap: 8mm; margin-top: 6mm; break-inside: avoid; }
-.cierre .izq { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4mm; }
-.cierre .der { width: 74mm; display: flex; flex-direction: column; gap: 5mm; }
-.logistica { display: grid; grid-template-columns: repeat(4, auto); justify-content: start; gap: 0 6mm; padding: 2.5mm 3.5mm; background: var(--nata); border-radius: 2mm; }
+.cierre { display: flex; gap: 8mm; margin-top: 5mm; padding-top: 3mm; border-top: 1px solid var(--tinta); break-inside: avoid; }
+.cierre .izq { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3mm; }
+.cierre .der { width: 72mm; display: flex; flex-direction: column; gap: 5mm; }
+.logistica { display: grid; grid-template-columns: repeat(4, auto); justify-content: start; gap: 0 7mm; }
 .logistica div { display: flex; flex-direction: column; }
-.logistica dt { font-size: 7.5pt; text-transform: uppercase; letter-spacing: .06em; color: var(--suave); }
+.logistica dt { font-size: 7.5pt; text-transform: uppercase; letter-spacing: .06em; color: var(--gris); }
 .logistica dd { font-weight: 700; font-variant-numeric: tabular-nums; }
-.notas { color: var(--suave); font-size: 8.5pt; }
+.notas { color: var(--gris); font-size: 8pt; }
 .notas p + p, .notas p + ul { margin-top: 1.5mm; }
-.notas b { color: var(--noche); }
+.notas b { color: var(--tinta); }
 .notas ul { padding-left: 4mm; }
 .totales { font-variant-numeric: tabular-nums; }
-.totales div { display: flex; justify-content: space-between; gap: 4mm; padding: 1.2mm 3mm; }
-.totales span { color: var(--suave); }
-.totales b { font-weight: 500; }
-.totales .total { margin: 1.5mm 0; padding: 3mm; background: var(--azul); color: #fff; border-radius: 2mm; }
-.totales .total span, .totales .total b { color: #fff; font-family: 'Unbounded', 'Arial Black', sans-serif; font-size: 11pt; font-weight: 700; }
-.totales .pendiente span, .totales .pendiente b { color: var(--noche); font-weight: 700; }
-.firma { border: 1px solid var(--raya); border-radius: 2mm; padding: 3mm 3.5mm; }
-.firma p { font-weight: 700; }
+.totales div { display: flex; justify-content: space-between; gap: 4mm; padding: 0.9mm 0; }
+.totales span { color: var(--gris); }
+.totales b { font-weight: 400; }
+.totales .total { margin-top: 1.5mm; padding: 2mm 0; border-top: 1px solid var(--tinta); border-bottom: 1px solid var(--tinta); }
+.totales .total span, .totales .total b { color: var(--tinta); font-size: 11pt; font-weight: 700; }
+.totales .pendiente span, .totales .pendiente b { color: var(--tinta); font-weight: 700; }
+.firma { border: 0.5px solid var(--linea); padding: 2.5mm 3mm; }
+.firma p { font-size: 8pt; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
 .firma .hueco-firma { height: 16mm; }
-.firma .peq { font-weight: 400; color: var(--suave); font-size: 7.5pt; border-top: 1px solid var(--noche); padding-top: 1mm; }
+.firma .peq { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--gris); font-size: 7.5pt; border-top: 0.5px solid var(--tinta); padding-top: 1mm; }
 
 /* Pie repetido */
-.pie { margin-top: 6mm; padding-top: 3mm; border-top: 1px solid var(--raya); text-align: center; color: var(--suave); font-size: 7.5pt; line-height: 1.45; }
+.pie { margin-top: 6mm; padding-top: 2.5mm; border-top: 0.5px solid var(--linea); text-align: center; color: var(--gris); font-size: 7pt; line-height: 1.45; }
 .pie .rgpd { font-size: 6.5pt; }
 
-.doc mark.hueco { background: #FFE3EF; color: #B0004F; border-radius: 1mm; padding: 0 1mm; }
+.doc mark.hueco { background: #FFF1A8; color: inherit; padding: 0 1mm; }
 
 @page { size: A4; margin: 10mm 0 12mm;
-  @bottom-right { content: "Página " counter(page) " de " counter(pages); font: 7.5pt 'DM Sans', Arial, sans-serif; color: #4B4B66; margin-right: 12mm; } }
-@media print {
-  .doc { width: auto; min-height: 0; padding: 0 12mm; }
-  .lineas thead th, .tira, .totales .total, .logistica { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-}
+  @bottom-right { content: "Página " counter(page) " de " counter(pages); font: 7.5pt Arial, Helvetica, sans-serif; color: #555; margin-right: 14mm; } }
+@media print { .doc { width: auto; min-height: 0; padding: 0 14mm; } }
 `;
