@@ -1464,19 +1464,20 @@ function formMovimiento(m, tipo) {
     { n: 'iva', l: 'IVA incluido', t: 'select', op: IVAS },
     { n: 'fecha', l: 'Fecha', t: 'date', req: true },
     { n: 'categoria', l: 'Categoría', t: 'select', op: esGasto ? CAT_GASTO : CAT_INGRESO },
-    { n: 'sepClas', l: esGasto ? 'Clasificación del gasto (se pone sola según la categoría; cámbiala si no encaja)' : 'Tipo de ingreso (se pone solo según la categoría)', t: 'sep' },
-    ...(esGasto ? [
-      { n: 'variabilidad', l: 'Según su variabilidad', t: 'select', op: VARIABILIDAD },
-      { n: 'relacion', l: 'Según su relación con el producto', t: 'select', op: RELACION },
-      { n: 'funcion', l: 'Según su función', t: 'select', op: FUNCION }
-    ] : [
-      { n: 'naturaleza', l: 'Según su naturaleza', t: 'select', op: NATURALEZA },
-      { n: 'recurrencia', l: 'Según si se repite', t: 'select', op: RECURRENCIA }
-    ]),
     { n: 'contraparte', l: esGasto ? 'Proveedor' : 'Cliente', max: 120 },
     { n: 'numeroFactura', l: 'Nº de factura', max: 60 },
     { n: 'pagadoPor', l: esGasto ? 'Lo ha pagado' : 'Lo ha cobrado', t: 'select', op: quien, ancho: true },
     { n: 'reparto', l: esGasto ? 'Se reparte entre' : 'Corresponde a', t: 'socios' },
+    { n: 'sepClas', l: esGasto ? 'Clasificación del gasto (se pone sola según la categoría; cámbiala si no encaja)' : 'Tipo de ingreso (se pone solo según la categoría)', t: 'sep' },
+    ...(esGasto ? [
+      { n: 'variabilidad', l: 'Según su variabilidad', t: 'select', op: VARIABILIDAD },
+      { n: 'relacion', l: 'Según su relación con el producto', t: 'select', op: RELACION },
+      { n: 'funcion', l: 'Según su función', t: 'select', op: FUNCION, ancho: true }
+    ] : [
+      { n: 'naturaleza', l: 'Según su naturaleza', t: 'select', op: NATURALEZA },
+      { n: 'recurrencia', l: 'Según si se repite', t: 'select', op: RECURRENCIA }
+    ]),
+    { n: 'sepOtros', l: 'Factura y notas', t: 'sep' },
     { n: 'enlace', l: 'Enlace a la factura (opcional, por ejemplo de Drive)', ancho: true, max: 500 },
     { n: 'notas', l: 'Notas', t: 'textarea', ancho: true }
   ];
@@ -1493,7 +1494,7 @@ function formMovimiento(m, tipo) {
       });
     },
     async alGuardar(d) {
-      delete d.sepClas;
+      delete d.sepClas; delete d.sepOtros;
       if (!d.reparto.length) { aviso('Elige al menos un socio en el reparto.'); return false; }
       if (d.enlace) { d.enlace = urlSegura(d.enlace); }
       const id = nuevo ? nuevoId() : m.id;
