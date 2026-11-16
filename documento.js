@@ -20,6 +20,10 @@ export const TIPOS = {
   pedido: { titulo: 'Pedido', prefijo: 'PED' },
   albaran: { titulo: 'Albarán', prefijo: 'ALB' }
 };
+// A pedido is a sale (to a customer) unless sentido is 'compra' (to a supplier, numbered PC-).
+export const PREFIJO_COMPRA = 'PC';
+export const esCompra = (d) => !!d && d.tipo === 'pedido' && d.sentido === 'compra';
+export const tituloDe = (d) => (esCompra(d) ? 'Pedido de compra' : (TIPOS[d.tipo] || TIPOS.presupuesto).titulo);
 
 const euros = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', useGrouping: 'always' });
 const fechaCorta = new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -61,7 +65,8 @@ function direccion(p) {
 }
 
 export function documentoHTML(doc, empresa = EMPRESA) {
-  const tipo = TIPOS[doc.tipo] || TIPOS.presupuesto;
+  const compra = esCompra(doc);
+  const tipo = { titulo: tituloDe(doc) };
   const c = calcular(doc);
   const cli = doc.cliente || {};
   const env = doc.envio || {};
@@ -90,14 +95,16 @@ export function documentoHTML(doc, empresa = EMPRESA) {
     (doc.tipo === 'presupuesto' ? fila('Válido hasta', verFecha(doc.validoHasta)) : '') +
     (doc.tipo === 'pedido' ? fila('Entrega prevista', verFecha(doc.entregaPrevista)) : '') +
     (doc.tipo === 'albaran' ? fila('Fecha de entrega', verFecha(doc.fechaEntrega)) : '') +
-    fila('Su referencia', doc.suReferencia) + fila('Nuestra ref.', doc.referencia) + fila('Atendido por', doc.comercial) + '</dl>';
+    fila('Su referencia', doc.suReferencia) + fila('Nuestra ref.', doc.referencia) + fila(compra ? 'Pedido por' : 'Atendido por', doc.comercial) + '</dl>';
   const envioDistinto = env.direccion && env.direccion !== cli.direccion;
-  const envioCuerpo = (envioDistinto || doc.tipo !== 'presupuesto') ? direccion(env.direccion ? env : cli) +
+  // In a purchase order the goods come to us unless another address is given.
+  const nuestra = { nombre: empresa.razonSocial, direccion: empresa.domicilio, localidad: empresa.localidad, telefono: empresa.telefono };
+  const envioCuerpo = compra ? direccion(env.direccion ? env : nuestra) : (envioDistinto || doc.tipo !== 'presupuesto') ? direccion(env.direccion ? env : cli) +
     (doc.tipo === 'albaran' ? '<dl>' + fila('Transporte', env.transportista) + fila('Seguimiento', env.seguimiento) + '</dl>' : '') : '';
   const partes = '<div class="partes">' +
     caja('caja-doc', tipo.titulo, datosDoc) +
-    caja('caja-cli', 'Cliente', direccion(cli), cli.codigo ? '<span class="cod">Código ' + esc(cli.codigo) + '</span>' : '') +
-    caja('caja-env', 'Dirección de envío', envioCuerpo) + '</div>';
+    caja('caja-cli', compra ? 'Proveedor' : 'Cliente', direccion(cli), cli.codigo ? '<span class="cod">Código ' + esc(cli.codigo) + '</span>' : '') +
+    caja('caja-env', compra ? 'Entregar en' : 'Dirección de envío', envioCuerpo) + '</div>';
 
   // Líneas. La fila de títulos se repite al cambiar de hoja.
   const thead = '<thead><tr>' + (conFotos ? '<th class="foto"></th>' : '') + '<th class="art">Artículo</th><th>Descripción</th><th class="num">Cant.</th>' +
@@ -133,7 +140,7 @@ export function documentoHTML(doc, empresa = EMPRESA) {
   const notas = (doc.formaPago ? '<p><b>Forma de pago:</b> ' + dato(doc.formaPago) + '</p>' : '') +
     (doc.notas ? '<p>' + dato(doc.notas) + '</p>' : '') +
     (condiciones.length ? '<ul>' + condiciones.map((x) => '<li>' + dato(x) + '</li>').join('') + '</ul>' : '');
-  const firma = { presupuesto: 'Aceptación del cliente', pedido: 'Conforme del cliente', albaran: 'Recibí conforme' }[doc.tipo];
+  const firma = compra ? 'Conforme del proveedor' : { presupuesto: 'Aceptación del cliente', pedido: 'Conforme del cliente', albaran: 'Recibí conforme' }[doc.tipo];
   const firmaNota = { presupuesto: 'Firma, nombre y fecha', pedido: 'Firma, nombre y fecha', albaran: 'Firma, nombre, DNI y fecha. Revise la mercancía antes de firmar.' }[doc.tipo];
   const cierre = '<div class="cierre">' +
     '<div class="izq">' + (logistica ? '<dl class="logistica">' + logistica + '</dl>' : '') + (notas ? '<div class="notas">' + notas + '</div>' : '') + '</div>' +

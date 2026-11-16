@@ -1,7 +1,7 @@
 // Gestión: catálogo de productos, clientes y documentos (presupuestos, pedidos y albaranes).
 // El documento se monta buscando productos del catálogo: al elegir uno se añade con su foto, características y precio.
 // Recibe del panel (index.html) su estado y sus utilidades; devuelve la vista y los formularios.
-import { documentoHTML, ESTILOS_DOCUMENTO, calcular, EMPRESA, TIPOS } from './documento.js';
+import { documentoHTML, ESTILOS_DOCUMENTO, calcular, EMPRESA, TIPOS, PREFIJO_COMPRA, esCompra, tituloDe } from './documento.js';
 
 export const CATEGORIAS = ['Colchones', 'Canapés', 'Bases y somieres', 'Almohadas', 'Textil', 'Accesorios', 'Servicios'];
 export const ESTADOS_DOC = {
@@ -9,7 +9,11 @@ export const ESTADOS_DOC = {
   pedido: [['abierto', 'En curso'], ['servido', 'Servido'], ['cancelado', 'Cancelado']],
   albaran: [['pendiente', 'Por entregar'], ['entregado', 'Entregado']]
 };
-const CLASE_ESTADO = { aceptado: 'ok', servido: 'ok', entregado: 'ok', rechazado: 'bad', cancelado: 'bad', enviado: 'azul', abierto: 'azul', pendiente: 'warn', borrador: '' };
+const ESTADOS_COMPRA = [['abierto', 'En curso'], ['recibido', 'Recibido'], ['cancelado', 'Cancelado']];
+const estadosDe = (d) => (esCompra(d) ? ESTADOS_COMPRA : ESTADOS_DOC[d.tipo] || []);
+// Name in the panel list: sales orders say so, to tell them apart from purchase orders.
+const nombreTipo = (d) => (d.tipo === 'pedido' ? (esCompra(d) ? 'Pedido de compra' : 'Pedido de venta') : tituloDe(d));
+const CLASE_ESTADO = { aceptado: 'ok', servido: 'ok', entregado: 'ok', recibido: 'ok', rechazado: 'bad', cancelado: 'bad', enviado: 'azul', abierto: 'azul', pendiente: 'warn', borrador: '' };
 const CONDICIONES_BASE = {
   presupuesto: 'Portes incluidos a península.\nPlazo de entrega: 7 a 10 días laborables desde la aceptación.\n3 años de garantía.',
   pedido: 'Plazo de entrega: 7 a 10 días laborables.\n3 años de garantía.',
@@ -30,8 +34,8 @@ export function crearGestion(x) {
     for (const k of Object.keys(e)) if (guardado[k]) e[k] = guardado[k];
     return e;
   }
-  function siguienteNumero(tipo, fecha) {
-    const pre = TIPOS[tipo].prefijo + '-' + (fecha || hoyIso()).slice(0, 4) + '-';
+  function siguienteNumero(tipo, fecha, compra) {
+    const pre = (compra ? PREFIJO_COMPRA : TIPOS[tipo].prefijo) + '-' + (fecha || hoyIso()).slice(0, 4) + '-';
     let max = 0;
     S.documentos.forEach((d) => { if (d.tipo === tipo && String(d.numero || '').startsWith(pre)) max = Math.max(max, parseInt(d.numero.slice(pre.length), 10) || 0); });
     return pre + String(max + 1).padStart(4, '0');
@@ -69,7 +73,7 @@ export function crearGestion(x) {
     const G = S.gestion;
     const subs = [['documentos', 'Documentos', S.documentos.length], ['productos', 'Productos', S.productos.length], ['clientes', 'Clientes', S.clientes.length], ['empresa', 'Datos de la empresa', null]];
     const acciones = {
-      documentos: '<button class="btn primario" type="button" data-nuevo="presupuesto">+ Presupuesto</button><button class="btn" type="button" data-nuevo="pedido">+ Pedido</button><button class="btn" type="button" data-nuevo="albaran">+ Albarán</button>',
+      documentos: '<button class="btn primario" type="button" data-nuevo="presupuesto">+ Presupuesto</button><button class="btn" type="button" data-nuevo="pedido">+ Pedido de venta</button><button class="btn" type="button" data-nuevo="pedidoCompra">+ Pedido de compra</button><button class="btn" type="button" data-nuevo="albaran">+ Albarán</button>',
       productos: '<button class="btn primario" type="button" data-nuevo="producto">+ Producto</button>',
       clientes: '<button class="btn primario" type="button" data-nuevo="cliente">+ Cliente</button>',
       empresa: ''
@@ -89,17 +93,17 @@ export function crearGestion(x) {
     const G = S.gestion;
     if (!S.listo.documentos) return '<div class="vacio">Cargando documentos…</div>';
     const q = sinTildes(G.buscar);
-    const lista = S.documentos.filter((d) => G.tipo === 'todos' || d.tipo === G.tipo)
+    const lista = S.documentos.filter((d) => G.tipo === 'todos' || (G.tipo === 'compra' ? esCompra(d) : d.tipo === G.tipo && !esCompra(d)))
       .filter((d) => !q || sinTildes([d.numero, (d.cliente || {}).nombre, d.suReferencia].join(' ')).includes(q))
       .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '') || (b.creado || '').localeCompare(a.creado || ''));
-    let html = '<div class="filtros">' + [['todos', 'Todos'], ['presupuesto', 'Presupuestos'], ['pedido', 'Pedidos'], ['albaran', 'Albaranes']]
-      .map(([k, n]) => '<button class="chip" type="button" data-gtipo="' + k + '" aria-pressed="' + (G.tipo === k) + '">' + n + '</button>').join('') + buscador('Buscar por número o cliente') + '</div>';
+    let html = '<div class="filtros">' + [['todos', 'Todos'], ['presupuesto', 'Presupuestos'], ['pedido', 'Pedidos de venta'], ['compra', 'Pedidos de compra'], ['albaran', 'Albaranes']]
+      .map(([k, n]) => '<button class="chip" type="button" data-gtipo="' + k + '" aria-pressed="' + (G.tipo === k) + '">' + n + '</button>').join('') + buscador('Buscar por número, cliente o proveedor') + '</div>';
     if (!S.documentos.length) return html + '<div class="vacio">Todavía no hay documentos. Empieza con «+ Presupuesto». Antes conviene dar de alta los productos en «Productos».</div>';
     if (!lista.length) return html + '<div class="vacio">Nada con este filtro.</div>';
-    return html + '<div class="tabla-wrap"><table class="mov"><thead><tr><th>Número</th><th>Tipo</th><th>Fecha</th><th>Cliente</th><th>Estado</th><th class="num">Total</th></tr></thead><tbody>' +
+    return html + '<div class="tabla-wrap"><table class="mov"><thead><tr><th>Número</th><th>Tipo</th><th>Fecha</th><th>Cliente o proveedor</th><th>Estado</th><th class="num">Total</th></tr></thead><tbody>' +
       lista.map((d) => {
-        const est = (ESTADOS_DOC[d.tipo] || []).find((e) => e[0] === d.estado);
-        return '<tr class="clic" tabindex="0" data-abrir="documentos:' + esc(d.id) + '"><td><b>' + esc(d.numero) + '</b></td><td>' + esc((TIPOS[d.tipo] || {}).titulo || '') + '</td><td>' + esc(textoFecha(d.fecha)) + '</td><td>' + esc((d.cliente || {}).nombre || '') + '</td>' +
+        const est = estadosDe(d).find((e) => e[0] === d.estado);
+        return '<tr class="clic" tabindex="0" data-abrir="documentos:' + esc(d.id) + '"><td><b>' + esc(d.numero) + '</b></td><td>' + esc(nombreTipo(d)) + '</td><td>' + esc(textoFecha(d.fecha)) + '</td><td>' + esc((d.cliente || {}).nombre || '') + '</td>' +
           '<td>' + (est ? '<span class="pill ' + (CLASE_ESTADO[est[0]] || '') + '">' + esc(est[1]) + '</span>' : '') + '</td><td class="num">' + (d.tipo === 'albaran' && !d.valorado ? '' : euros(calcular(d).total)) + '</td></tr>';
       }).join('') + '</tbody></table></div>';
   }
@@ -262,22 +266,25 @@ export function crearGestion(x) {
   }
 
   /* ---------- Documento ---------- */
-  function nuevoDocumento(tipo, base) {
+  function nuevoDocumento(tipo, base, sentido) {
     const g = ajustesEmpresa();
     const fecha = hoyIso();
+    const compra = tipo === 'pedido' && sentido === 'compra';
     const d = Object.assign({
-      tipo, fecha, numero: siguienteNumero(tipo, fecha), estado: ESTADOS_DOC[tipo][0][0], comercial: S.yo || '',
+      tipo, fecha, numero: siguienteNumero(tipo, fecha, compra), estado: ESTADOS_DOC[tipo][0][0], comercial: S.yo || '',
       cliente: { pais: 'España' }, envio: {}, lineas: [], logistica: {},
-      formaPago: g.formaPago || '', notas: '',
-      condiciones: lineasDe({ presupuesto: g.condPresupuesto ?? CONDICIONES_BASE.presupuesto, pedido: g.condPedido ?? CONDICIONES_BASE.pedido, albaran: g.condAlbaran ?? CONDICIONES_BASE.albaran }[tipo])
-    }, base || {});
+      formaPago: compra ? '' : g.formaPago || '', notas: '',
+      // A purchase order carries no customer conditions; whatever we ask the supplier goes in Notas.
+      condiciones: compra ? [] : lineasDe({ presupuesto: g.condPresupuesto ?? CONDICIONES_BASE.presupuesto, pedido: g.condPedido ?? CONDICIONES_BASE.pedido, albaran: g.condAlbaran ?? CONDICIONES_BASE.albaran }[tipo])
+    }, compra ? { sentido: 'compra' } : {}, base || {});
     if (tipo === 'presupuesto' && !d.validoHasta) d.validoHasta = sumaDias(fecha, Number(g.validez) || 15);
     return d;
   }
 
-  function lineaDeProducto(p) {
+  // In a purchase order the line takes the purchase cost, not the selling price.
+  function lineaDeProducto(p, compra) {
     return { productoId: p.id, ref: p.ref || '', descripcion: p.nombre || '', detalle: [p.medidas ? 'Medidas: ' + p.medidas : '', p.detalle || ''].filter(Boolean).join('\n'),
-      cantidad: 1, precio: Number(p.precio) || 0, dto1: 0, dto2: 0, iva: Number(p.iva ?? 21) };
+      cantidad: 1, precio: Number(compra ? p.coste : p.precio) || 0, dto1: 0, dto2: 0, iva: Number(p.iva ?? 21) };
   }
 
   // Bultos, peso y volumen sumados de los productos del catálogo.
@@ -314,15 +321,16 @@ export function crearGestion(x) {
     const d = JSON.parse(JSON.stringify(original || plantilla));
     d.cliente = d.cliente || {}; d.envio = d.envio || {}; d.lineas = d.lineas || []; d.logistica = d.logistica || {};
     const tipo = d.tipo;
-    const titulo = (TIPOS[tipo] || {}).titulo || 'Documento';
+    const compra = esCompra(d);
+    const titulo = tituloDe(d);
     const ro = S.escribir ? '' : ' disabled';
     const campo = (id, l, v, extra = '') => '<div class="campo"><label for="' + id + '">' + l + '</label><input id="' + id + '" value="' + esc(v ?? '') + '"' + extra + ro + '></div>';
     const fechaCampo = (id, l, v) => campo(id, l, v, ' type="date"');
-    const estados = ESTADOS_DOC[tipo].map(([k, n]) => '<option value="' + k + '"' + (d.estado === k ? ' selected' : '') + '>' + n + '</option>').join('');
+    const estados = estadosDe(d).map(([k, n]) => '<option value="' + k + '"' + (d.estado === k ? ' selected' : '') + '>' + n + '</option>').join('');
     const personas = Object.keys(PERSONAS).filter((k) => k !== 'todos').map((k) => '<option value="' + k + '"' + (d.comercial === k ? ' selected' : '') + '>' + esc(PERSONAS[k].n) + '</option>').join('');
     const env = d.envio;
     const otroEnvio = !!(env.direccion || env.nombre);
-    const conversion = !nuevo && S.escribir ? (tipo === 'presupuesto' ? '<button type="button" class="btn" id="d-convertir" data-a="pedido">Pasar a pedido</button>' : tipo === 'pedido' ? '<button type="button" class="btn" id="d-convertir" data-a="albaran">Hacer albarán</button>' : '') : '';
+    const conversion = !nuevo && S.escribir && !compra ? (tipo === 'presupuesto' ? '<button type="button" class="btn" id="d-convertir" data-a="pedido">Pasar a pedido</button>' : tipo === 'pedido' ? '<button type="button" class="btn" id="d-convertir" data-a="albaran">Hacer albarán</button>' : '') : '';
 
     $('capa').innerHTML = '<div class="velo" id="velo"><form class="hoja hoja-doc" id="hoja" novalidate>' +
       '<h2 style="display:flex;flex-wrap:wrap;align-items:baseline;gap:8px">' + esc(titulo) + ' <span style="color:var(--muted);font-weight:500">' + esc(d.numero) + '</span><a class="mini" href="guia-gestion.html#documento" target="_blank" rel="noopener" style="margin-left:auto;font-family:var(--f-body)">Guía de campos</a></h2>' +
@@ -330,18 +338,20 @@ export function crearGestion(x) {
         campo('d-numero', 'Número', d.numero) + fechaCampo('d-fecha', 'Fecha', d.fecha) +
         (tipo === 'presupuesto' ? fechaCampo('d-valido', 'Válido hasta', d.validoHasta) : tipo === 'pedido' ? fechaCampo('d-entrega', 'Entrega prevista', d.entregaPrevista) : fechaCampo('d-entregado', 'Fecha de entrega', d.fechaEntrega)) +
         '<div class="campo"><label for="d-estado">Estado</label><select id="d-estado"' + ro + '>' + estados + '</select></div>' +
-        '<div class="campo"><label for="d-comercial">Atendido por</label><select id="d-comercial"' + ro + '><option value=""></option>' + personas + '</select></div>' +
+        '<div class="campo"><label for="d-comercial">' + (compra ? 'Pedido por' : 'Atendido por') + '</label><select id="d-comercial"' + ro + '><option value=""></option>' + personas + '</select></div>' +
         campo('d-suref', 'Su referencia', d.suReferencia, ' maxlength="80"') +
       '</div>' +
-      '<div class="separador">Cliente</div>' +
+      '<div class="separador">' + (compra ? 'Proveedor' : 'Cliente') + '</div>' +
       '<div class="campos g-tres">' +
-        '<div class="campo ancho"><label for="d-cli-nombre">Nombre o empresa (escribe para buscar entre los clientes)</label><input id="d-cli-nombre" list="d-clientes" autocomplete="off" value="' + esc(d.cliente.nombre || '') + '"' + ro + '>' +
-        '<datalist id="d-clientes">' + S.clientes.map((c) => '<option value="' + esc(c.nombre) + '">' + esc([c.codigo, c.nif, c.localidad].filter(Boolean).join(' · ')) + '</option>').join('') + '</datalist></div>' +
+        '<div class="campo ancho"><label for="d-cli-nombre">' + (compra ? 'Proveedor (escribe para buscar entre los de «Proveedores»)' : 'Nombre o empresa (escribe para buscar entre los clientes)') + '</label><input id="d-cli-nombre" list="d-clientes" autocomplete="off" value="' + esc(d.cliente.nombre || '') + '"' + ro + '>' +
+        '<datalist id="d-clientes">' + (compra
+          ? S.proveedores.map((p) => '<option value="' + esc(p.nombre) + '">' + esc(p.que || '') + '</option>').join('')
+          : S.clientes.map((c) => '<option value="' + esc(c.nombre) + '">' + esc([c.codigo, c.nif, c.localidad].filter(Boolean).join(' · ')) + '</option>').join('')) + '</datalist></div>' +
         campo('d-cli-nif', 'NIF / DNI', d.cliente.nif) + campo('d-cli-tel', 'Teléfono', d.cliente.telefono) + campo('d-cli-correo', 'Correo', d.cliente.correo, ' type="email"') +
         '<div class="campo ancho"><label for="d-cli-dir">Dirección</label><input id="d-cli-dir" value="' + esc(d.cliente.direccion || '') + '"' + ro + '></div>' +
         campo('d-cli-loc', 'CP y localidad', d.cliente.localidad) + campo('d-cli-pais', 'País', d.cliente.pais) + campo('d-cli-att', 'A la atención de', d.cliente.att) +
-        '<label class="chk-linea campo ancho"><input type="checkbox" id="d-cli-guardar" checked' + ro + '> Guardar o actualizar este cliente en «Clientes»</label>' +
-        '<label class="chk-linea campo ancho"><input type="checkbox" id="d-otro-envio"' + (otroEnvio ? ' checked' : '') + ro + '> Enviar a otra dirección</label>' +
+        (compra ? '' : '<label class="chk-linea campo ancho"><input type="checkbox" id="d-cli-guardar" checked' + ro + '> Guardar o actualizar este cliente en «Clientes»</label>') +
+        '<label class="chk-linea campo ancho"><input type="checkbox" id="d-otro-envio"' + (otroEnvio ? ' checked' : '') + ro + '> ' + (compra ? 'Entregar en otra dirección (si no, en la nuestra)' : 'Enviar a otra dirección') + '</label>' +
       '</div>' +
       '<div class="campos g-tres" id="d-envio"' + (otroEnvio || tipo === 'albaran' ? '' : ' hidden') + '>' +
         '<div class="campo ancho"><label for="d-env-nombre">Nombre en el envío</label><input id="d-env-nombre" value="' + esc(env.nombre || '') + '"' + ro + '></div>' +
@@ -427,11 +437,11 @@ export function crearGestion(x) {
         const caja = $('d-resultados');
         caja.hidden = !q;
         caja.innerHTML = resultados.length ? resultados.map((p, i) => '<button type="button" class="g-res' + (i === marcado ? ' marcado' : '') + '" data-prod="' + esc(p.id) + '">' +
-          '<span class="g-mini-foto">' + (p.foto ? '<img src="' + esc(p.foto) + '" alt="">' : '') + '</span><span><b>' + esc(p.nombre) + '</b><small>' + esc([p.ref, p.medidas].filter(Boolean).join(' · ')) + '</small></span><span class="g-res-precio">' + euros(p.precio) + '</span></button>').join('')
+          '<span class="g-mini-foto">' + (p.foto ? '<img src="' + esc(p.foto) + '" alt="">' : '') + '</span><span><b>' + esc(p.nombre) + '</b><small>' + esc([p.ref, p.medidas].filter(Boolean).join(' · ')) + '</small></span><span class="g-res-precio">' + (compra ? (p.coste ? euros(p.coste) + ' coste' : 'Sin coste') : euros(p.precio)) + '</span></button>').join('')
           : '<div class="g-res-vacio">Ningún producto coincide. ' + (S.productos.length ? '' : 'El catálogo está vacío: da de alta productos en Gestión → Productos.') + '</div>';
       };
       const anadir = (p) => {
-        d.lineas.push(lineaDeProducto(p)); cambiado.valor = true; pintarLineas();
+        d.lineas.push(lineaDeProducto(p, compra)); cambiado.valor = true; pintarLineas();
         $('d-buscar').value = ''; marcado = 0; pintarRes(); $('d-buscar').focus();
       };
       $('d-buscar').addEventListener('input', () => { marcado = 0; pintarRes(); });
@@ -444,8 +454,15 @@ export function crearGestion(x) {
       $('d-libre').onclick = () => { d.lineas.push({ ref: '', descripcion: '', detalle: '', cantidad: 1, precio: 0, dto1: 0, dto2: 0, iva: 21 }); cambiado.valor = true; pintarLineas(); const ult = form.querySelector('.g-linea:last-child [data-k="descripcion"]'); if (ult) ult.focus(); };
     }
 
-    // Cliente: al elegir uno de la lista se rellenan sus datos.
+    // Cliente: al elegir uno de la lista se rellenan sus datos. Proveedor: se enlaza y se pone su dirección.
     const rellenarCliente = () => {
+      if (compra) {
+        const p = S.proveedores.find((x) => x.nombre === v('d-cli-nombre'));
+        if (!p) return;
+        d.proveedorId = p.id;
+        if (p.direccion && !v('d-cli-dir')) $('d-cli-dir').value = p.direccion;
+        return;
+      }
       const c = S.clientes.find((x) => x.nombre === v('d-cli-nombre'));
       if (!c) return;
       d.clienteId = c.id;
@@ -485,7 +502,7 @@ export function crearGestion(x) {
     }
 
     async function guardarCliente(r) {
-      if (!$('d-cli-guardar').checked || !r.cliente.nombre) return;
+      if (compra || !$('d-cli-guardar').checked || !r.cliente.nombre) return;
       const datos = Object.assign({}, r.cliente);
       if ($('d-otro-envio').checked) Object.assign(datos, { envioNombre: r.envio.nombre, envioDireccion: r.envio.direccion, envioLocalidad: r.envio.localidad, envioPais: r.envio.pais, envioContacto: r.envio.contacto });
       const existe = S.clientes.find((c) => c.id === r.clienteId) || S.clientes.find((c) => sinTildes(c.nombre) === sinTildes(r.cliente.nombre));
@@ -497,7 +514,7 @@ export function crearGestion(x) {
     async function guardar() {
       const r = leer();
       if (!r.numero) { aviso('Falta el número.'); $('d-numero').focus(); return null; }
-      if (!r.cliente.nombre) { aviso('Falta el cliente.'); $('d-cli-nombre').focus(); return null; }
+      if (!r.cliente.nombre) { aviso(compra ? 'Falta el proveedor.' : 'Falta el cliente.'); $('d-cli-nombre').focus(); return null; }
       const repetido = S.documentos.find((o) => o.id !== r.id && o.tipo === tipo && o.numero === r.numero);
       if (repetido) { aviso('Ya hay un ' + titulo.toLowerCase() + ' con el número ' + r.numero + '.'); return null; }
       const ok = await escribir(async () => {
@@ -510,7 +527,7 @@ export function crearGestion(x) {
           const origen = S.documentos.find((o) => o.id === r.origenId);
           if (origen) await col('documentos').doc(origen.id).update({ estado: origen.tipo === 'presupuesto' ? 'aceptado' : 'servido' });
         }
-      }, titulo + ' guardado', (nuevo ? 'hizo el ' : 'editó el ') + titulo.toLowerCase() + ' ' + r.numero + ' para ' + r.cliente.nombre);
+      }, titulo + ' guardado', (nuevo ? 'hizo el ' : 'editó el ') + titulo.toLowerCase() + ' ' + r.numero + (compra ? ' a ' : ' para ') + r.cliente.nombre);
       if (!ok) return null;
       Object.assign(d, r); cambiado.valor = false;
       return r;
@@ -572,6 +589,7 @@ export function crearGestion(x) {
       producto: () => formProducto(), cliente: () => formCliente(), empresa: formEmpresa,
       presupuesto: () => editorDocumento(null, nuevoDocumento('presupuesto')),
       pedido: () => editorDocumento(null, nuevoDocumento('pedido')),
+      pedidoCompra: () => editorDocumento(null, nuevoDocumento('pedido', null, 'compra')),
       albaran: () => editorDocumento(null, nuevoDocumento('albaran'))
     }
   };

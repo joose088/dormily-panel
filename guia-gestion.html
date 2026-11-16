@@ -199,23 +199,25 @@ Encargado · 600 000 000</td><td class="sale si">Sí, en «Dirección de envío�
 
 <section class="bloque" id="documento">
   <h2>5. Documento: cabecera</h2>
-  <p class="donde">Gestión → Documentos → + Presupuesto, + Pedido o + Albarán. Para abrir uno ya hecho, pulsad su fila en la lista.</p>
+  <p class="donde">Gestión → Documentos → + Presupuesto, + Pedido de venta, + Pedido de compra o + Albarán. Para abrir uno ya hecho, pulsad su fila en la lista.</p>
   <ul>
     <li><b>Presupuesto</b>: la oferta antes de que el cliente diga que sí. Tiene fecha de validez y recuadro de «Aceptación del cliente».</li>
-    <li><b>Pedido</b>: el encargo ya aceptado. Lleva fecha de entrega prevista y lo pagado a cuenta.</li>
+    <li><b>Pedido de venta</b>: el encargo de un cliente ya aceptado. Lleva fecha de entrega prevista y lo pagado a cuenta.</li>
+    <li><b>Pedido de compra</b>: lo que pedimos a un proveedor. El proveedor se busca entre los de «Proveedores» y no se guarda en Clientes; cada producto entra con su <b>coste de compra</b>, no con el precio de venta. Si no se pone otra dirección, se entrega en la nuestra. Las condiciones que queramos pedirle (plazo, embalaje, portes) van en Notas.</li>
     <li><b>Albarán</b>: el papel que firma el cliente al recibir la mercancía. Por defecto sin precios.</li>
   </ul>
   <div class="tabla"><table class="campos">
     <thead><tr><th>Campo</th><th>Obligatorio</th><th>Qué poner</th><th>Ejemplo</th><th>Sale</th></tr></thead>
     <tbody>
-      <tr><td>Número</td><td class="ob">Sí (se pone solo)</td><td>Se numera solo por tipo y año: P (presupuesto), PED (pedido) y ALB (albarán), año y número de 4 cifras. No lo cambiéis salvo para corregir un error: no puede repetirse.</td><td class="ej">P-2026-0003
+      <tr><td>Número</td><td class="ob">Sí (se pone solo)</td><td>Se numera solo por tipo y año: P (presupuesto), PED (pedido de venta), PC (pedido de compra) y ALB (albarán), año y número de 4 cifras. No lo cambiéis salvo para corregir un error: no puede repetirse.</td><td class="ej">P-2026-0003
 PED-2026-0001
+PC-2026-0001
 ALB-2026-0001</td><td class="sale si">Sí</td></tr>
       <tr><td>Fecha</td><td class="ob">Sí (viene hoy)</td><td>El día en que se hace el documento.</td><td class="ej">16/11/2026</td><td class="sale si">Sí</td></tr>
       <tr><td>Válido hasta</td><td class="ob">Solo presupuesto</td><td>Hasta cuándo se mantiene el precio. Se calcula con los días de validez de «Datos de la empresa». Con ella se escribe sola la condición «Validez de la oferta: 15 días, hasta el …».</td><td class="ej">01/12/2026</td><td class="sale si">Sí</td></tr>
       <tr><td>Entrega prevista</td><td class="ob">Solo pedido</td><td>Día aproximado en que llegará al cliente. Contad el plazo del proveedor más el transporte.</td><td class="ej">26/11/2026</td><td class="sale si">Sí</td></tr>
       <tr><td>Fecha de entrega</td><td class="ob">Solo albarán</td><td>El día real en que se entrega la mercancía.</td><td class="ej">26/11/2026</td><td class="sale si">Sí</td></tr>
-      <tr><td>Estado</td><td class="ob">Sí</td><td>En qué punto está. Presupuesto: Borrador, Enviado, Aceptado o Rechazado. Pedido: En curso, Servido o Cancelado. Albarán: Por entregar o Entregado. Al pasar a pedido o a albarán, el anterior cambia solo.</td><td class="ej">Enviado</td><td class="sale no">No</td></tr>
+      <tr><td>Estado</td><td class="ob">Sí</td><td>En qué punto está. Presupuesto: Borrador, Enviado, Aceptado o Rechazado. Pedido de venta: En curso, Servido o Cancelado. Pedido de compra: En curso, Recibido o Cancelado. Albarán: Por entregar o Entregado. Al pasar a pedido o a albarán, el anterior cambia solo.</td><td class="ej">Enviado</td><td class="sale no">No</td></tr>
       <tr><td>Atendido por</td><td class="ob">No (viene quien lo hace)</td><td>El socio que lleva al cliente.</td><td class="ej">José Carlos</td><td class="sale si">Sí</td></tr>
       <tr><td>Su referencia</td><td class="ob">No</td><td>La referencia que usa el cliente: su número de pedido, el nombre de la obra o del proyecto. Sobre todo para empresas.</td><td class="ej">Reforma 2.ª planta
 Pedido 45/2026</td><td class="sale si">Sí</td></tr>
