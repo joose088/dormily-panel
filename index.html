@@ -995,7 +995,8 @@ function bloqueInstagram(ig) {
   let h = '<h3 class="grupo-titulo" style="margin-top:28px">Instagram en detalle</h3>';
   if (ig.errorTotales) h += avisoParte('Cifras de la cuenta:', ig.errorTotales);
   const t = ig.totales || {};
-  const tiles = METRICAS_IG.filter(([k]) => k in t).map(([k, n, nota]) => tileEst(n, fEnteros.format(t[k]), nota));
+  // Meta reports some metrics net of undone actions (an unsaved post counts -1), so negatives show as 0.
+  const tiles = METRICAS_IG.filter(([k]) => k in t).map(([k, n, nota]) => tileEst(n, fEnteros.format(Math.max(0, t[k])), nota));
   if (tiles.length) h += '<div class="est-kpis">' + tiles.join('') + '</div>';
   // Latest posts
   if (ig.errorPosts) h += avisoParte('Publicaciones:', ig.errorPosts);
