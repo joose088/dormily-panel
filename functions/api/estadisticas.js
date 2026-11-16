@@ -268,6 +268,81 @@ async function alcanceInstagram(env, a, ig, dias) {
   return porDia;
 }
 
+/* ---------- Instagram in detail ---------- */
+// Account totals for the period. Meta answers these only in windows of up to 30 days, and rejects the whole
+// request if one metric is unknown, so the metrics are checked one by one on the first window.
+const METRICAS_IG = ['views', 'reach', 'accounts_engaged', 'total_interactions', 'likes', 'comments', 'shares', 'saves',
+  'replies', 'profile_links_taps', 'follows_and_unfollows', 'profile_views', 'website_clicks'];
+
+function ventanas(dias) {
+  const fin = Math.floor(Date.now() / 1000), lista = [];
+  for (let hecho = 0; hecho < dias; hecho += 30) {
+    const hasta = fin - hecho * 86400;
+    lista.push({ since: String(hasta - Math.min(30, dias - hecho) * 86400), until: String(hasta) });
+  }
+  return lista;
+}
+
+async function totalesInstagram(env, a, ig, dias) {
+  const pedir = (metricas, v) => graphMeta(env, a, ig + '/insights', Object.assign({ metric: metricas.join(','), period: 'day', metric_type: 'total_value' }, v));
+  const sumar = (totales, d) => {
+    for (const m of d.data || []) {
+      const tv = m.total_value || {};
+      totales[m.name] = (totales[m.name] || 0) + (Number(tv.value) || 0);
+      // follows_and_unfollows comes split into follows and unfollows
+      for (const b of tv.breakdowns || []) for (const r of b.results || []) {
+        const clave = m.name + ':' + (r.dimension_values || []).join('/');
+        totales[clave] = (totales[clave] || 0) + (Number(r.value) || 0);
+      }
+    }
+  };
+  const [primera, ...resto] = ventanas(dias);
+  const totales = {};
+  let validas = METRICAS_IG;
+  try {
+    sumar(totales, await pedir(validas, primera));
+  } catch (e) {
+    const pruebas = await Promise.all(METRICAS_IG.map((m) => parteSegura(pedir([m], primera))));
+    validas = METRICAS_IG.filter((m, i) => !pruebas[i].error);
+    pruebas.forEach((d) => { if (!d.error) sumar(totales, d); });
+  }
+  for (const v of resto) if (validas.length) sumar(totales, await pedir(validas, v));
+  return totales;
+}
+
+// Followers by age, sex, country and city. Meta only gives this from 100 followers.
+async function demografiaInstagram(env, a, ig) {
+  const salida = {};
+  for (const desglose of ['age', 'gender', 'country', 'city']) {
+    let d = await parteSegura(graphMeta(env, a, ig + '/insights', { metric: 'follower_demographics', period: 'lifetime', metric_type: 'total_value', breakdown: desglose }));
+    if (d.error) d = await parteSegura(graphMeta(env, a, ig + '/insights', { metric: 'follower_demographics', period: 'lifetime', metric_type: 'total_value', timeframe: 'this_month', breakdown: desglose }));
+    if (d.error) { salida.error = d.error; break; }
+    const filas = [];
+    for (const m of d.data || []) for (const b of (m.total_value || {}).breakdowns || []) for (const r of b.results || [])
+      filas.push({ clave: (r.dimension_values || []).join(' '), valor: Number(r.value) || 0 });
+    salida[desglose] = filas.sort((x, y) => y.valor - x.valor).slice(0, 10);
+  }
+  return salida;
+}
+
+// Latest posts with their own numbers (likes and comments always; reach, views, saves and shares when Meta has them).
+async function publicacionesInstagram(env, a, ig) {
+  const d = await graphMeta(env, a, ig + '/media', { fields: 'id,caption,media_type,media_product_type,permalink,timestamp,like_count,comments_count', limit: '6' });
+  const lista = d.data || [];
+  const metricas = await Promise.all(lista.map(async (p) => {
+    let r = await parteSegura(graphMeta(env, a, p.id + '/insights', { metric: 'reach,views,saved,shares,total_interactions' }));
+    if (r.error) r = await parteSegura(graphMeta(env, a, p.id + '/insights', { metric: 'reach,saved,shares' }));
+    const o = {};
+    if (!r.error) for (const m of r.data || []) o[m.name] = Number(((m.values || [])[0] || {}).value ?? (m.total_value || {}).value) || 0;
+    return o;
+  }));
+  return lista.map((p, i) => ({
+    fecha: p.timestamp, tipo: p.media_product_type === 'REELS' ? 'Reel' : p.media_type === 'CAROUSEL_ALBUM' ? 'Carrusel' : p.media_type === 'VIDEO' ? 'Vídeo' : 'Foto',
+    texto: (p.caption || '').slice(0, 90), enlace: p.permalink, meGusta: p.like_count || 0, comentarios: p.comments_count || 0,
+    alcance: metricas[i].reach ?? null, visualizaciones: metricas[i].views ?? null, guardados: metricas[i].saved ?? null, compartidos: metricas[i].shares ?? null
+  }));
+}
+
 // When the Page does not report its Instagram, look for the one the portfolio owns.
 async function igDelPortfolio(env, a) {
   for (const borde of ['owned_instagram_accounts', 'instagram_accounts']) {
@@ -296,10 +371,20 @@ async function datosMeta(env, a, dias) {
   ]);
   // Reading pixel stats needs an ads permission the app does not have; the panel then links to Events Manager.
   const pixelSinPermiso = pixel.error && /missing permission|ads_read|ads_management/i.test(pixel.error);
+  let detalle = {};
+  if (igId && !perfil.error) {
+    const [totales, posts, demografia] = await Promise.all([
+      parteSegura(totalesInstagram(env, a, igId, dias)),
+      perfil.media_count ? parteSegura(publicacionesInstagram(env, a, igId)) : Promise.resolve([]),
+      (perfil.followers_count || 0) >= 100 ? parteSegura(demografiaInstagram(env, a, igId)) : Promise.resolve({ pocos: true })
+    ]);
+    detalle = { totales: totales.error ? null : totales, errorTotales: totales.error || null,
+      posts: posts.error ? null : posts, errorPosts: posts.error || null, demografia };
+  }
   return {
     configurado: true,
     facebook: pagina.error ? { error: pagina.error } : { nombre: pagina.name, seguidores: pagina.followers_count ?? pagina.fan_count ?? 0 },
-    instagram: perfil.error ? { error: perfil.error } : { usuario: perfil.username, seguidores: perfil.followers_count || 0, publicaciones: perfil.media_count || 0, alcancePorDia: alcance.error ? null : alcance, errorAlcance: alcance.error || null },
+    instagram: perfil.error ? { error: perfil.error } : Object.assign({ usuario: perfil.username, seguidores: perfil.followers_count || 0, publicaciones: perfil.media_count || 0, alcancePorDia: alcance.error ? null : alcance, errorAlcance: alcance.error || null }, detalle),
     pixel: pixelSinPermiso ? { sinPermiso: true } : pixel.error ? { error: pixel.error } : { eventos: pixel }
   };
 }

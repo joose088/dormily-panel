@@ -982,6 +982,40 @@ const NOMBRES_PIXEL = { PageView: 'Visitas a páginas', ViewContent: 'Vieron un 
 const ORDEN_PIXEL = Object.keys(NOMBRES_PIXEL);
 const tileEst = (n, v, nota) => '<div class="saldo"><span class="est-n">' + n + '</span><span class="neto">' + v + '</span>' + (nota ? '<span class="est-nota">' + nota + '</span>' : '') + '</div>';
 const avisoParte = (txt, err) => '<div class="est-aviso"><b>' + txt + '</b> ' + esc(err) + '</div>';
+const METRICAS_IG = [
+  ['views', 'Visualizaciones', 'Veces que se vio tu contenido'],
+  ['accounts_engaged', 'Cuentas que interactuaron', 'Dieron me gusta, comentaron, guardaron…'], ['total_interactions', 'Interacciones', 'Todas sumadas'],
+  ['likes', 'Me gusta', ''], ['comments', 'Comentarios', ''], ['shares', 'Compartidos', ''], ['saves', 'Guardados', ''],
+  ['replies', 'Respuestas a historias', ''], ['profile_views', 'Visitas al perfil', ''], ['profile_links_taps', 'Toques en enlaces del perfil', 'Web, correo, teléfono…'],
+  ['website_clicks', 'Clics en la web', ''], ['follows_and_unfollows', 'Altas y bajas de seguidores', 'Gente que empezó o dejó de seguir']
+];
+const nombrePais = (() => { try { const d = new Intl.DisplayNames(['es'], { type: 'region' }); return (c) => d.of(c) || c; } catch (e) { return (c) => c; } })();
+const nombreDemografia = (tipo, clave) => tipo === 'gender' ? ({ F: 'Mujeres', M: 'Hombres', U: 'Sin indicar' }[clave] || clave) : tipo === 'country' ? nombrePais(clave) : tipo === 'age' ? clave + ' años' : clave;
+function bloqueInstagram(ig) {
+  let h = '<h3 class="grupo-titulo" style="margin-top:28px">Instagram en detalle</h3>';
+  if (ig.errorTotales) h += avisoParte('Cifras de la cuenta:', ig.errorTotales);
+  const t = ig.totales || {};
+  const tiles = METRICAS_IG.filter(([k]) => k in t).map(([k, n, nota]) => tileEst(n, fEnteros.format(t[k]), nota));
+  if (tiles.length) h += '<div class="est-kpis">' + tiles.join('') + '</div>';
+  // Latest posts
+  if (ig.errorPosts) h += avisoParte('Publicaciones:', ig.errorPosts);
+  const posts = ig.posts || [];
+  const n = (v) => (v == null ? '–' : fEnteros.format(v));
+  h += '<h3 class="grupo-titulo" style="margin-top:22px">Últimas publicaciones</h3>' + (posts.length ?
+    '<div class="tabla-wrap"><table class="mov"><thead><tr><th>Fecha</th><th>Tipo</th><th>Publicación</th><th class="num">Me gusta</th><th class="num">Coment.</th><th class="num">Alcance</th><th class="num">Visualiz.</th><th class="num">Guardados</th><th class="num">Compart.</th></tr></thead><tbody>' +
+    posts.map((p) => '<tr><td>' + esc(fCorta.format(new Date(p.fecha))) + '</td><td>' + esc(p.tipo) + '</td><td><a href="' + esc(p.enlace) + '" target="_blank" rel="noopener">' + esc(p.texto || 'Ver en Instagram') + '</a></td><td class="num">' + n(p.meGusta) + '</td><td class="num">' + n(p.comentarios) + '</td><td class="num">' + n(p.alcance) + '</td><td class="num">' + n(p.visualizaciones) + '</td><td class="num">' + n(p.guardados) + '</td><td class="num">' + n(p.compartidos) + '</td></tr>').join('') +
+    '</tbody></table></div>' : '<div class="vacio" style="margin-top:8px">Aún no hay publicaciones.</div>');
+  // Audience
+  const dem = ig.demografia || {};
+  h += '<h3 class="grupo-titulo" style="margin-top:22px">Quién te sigue</h3>';
+  if (dem.pocos) h += '<p class="est-pie" style="margin:8px 0 0">Meta enseña edades, sexo, países y ciudades de los seguidores a partir de 100 seguidores.</p>';
+  else if (dem.error) h += avisoParte('Seguidores por edad y lugar:', dem.error);
+  else {
+    const lista = (tipo, titulo) => '<div class="est-graf">' + listaBarras(titulo, (dem[tipo] || []).map((f) => ({ n: nombreDemografia(tipo, f.clave), v: f.valor, t: fEnteros.format(f.valor) })), 'Sin datos todavía.') + '</div>';
+    h += '<div class="est-graficas">' + lista('age', 'Por edad') + lista('gender', 'Por sexo') + lista('country', 'Por país') + lista('city', 'Por ciudad') + '</div>';
+  }
+  return h;
+}
 function bloqueMeta(me) {
   let h = '<h3 class="grupo-titulo" style="margin-top:28px">Instagram, Facebook y píxel de Meta</h3>';
   if (!me || !me.configurado) return h + '<p class="est-pie" style="margin:8px 0 0">Estas cifras se miran en Meta: ' +
@@ -989,14 +1023,15 @@ function bloqueMeta(me) {
     '<a href="https://business.facebook.com/events_manager2/list/dataset/3314865168719686/overview?business_id=1048814831506388" target="_blank" rel="noopener">lo que recibe el píxel</a>.</p>';
   if (me.error) return h + avisoParte('Meta no responde:', me.error);
   const ig = me.instagram || {}, fb = me.facebook || {}, px = me.pixel || {};
-  const alcance = ig.alcancePorDia ? Object.values(ig.alcancePorDia).reduce((s, v) => s + v, 0) : null;
+  // Reach for the whole period counts each account once; the daily sum is only the fallback.
+  const alcance = ig.totales && 'reach' in ig.totales ? ig.totales.reach : ig.alcancePorDia ? Object.values(ig.alcancePorDia).reduce((s, v) => s + v, 0) : null;
   if (ig.error) h += avisoParte('Instagram:', ig.error);
   if (!ig.error && ig.errorAlcance) h += avisoParte('Alcance de Instagram:', ig.errorAlcance);
   if (fb.error) h += avisoParte('Facebook:', fb.error);
   if (px.error) h += avisoParte('Píxel de Meta:', px.error);
   h += '<div class="est-kpis">' +
     tileEst('Seguidores en Instagram', ig.error ? '–' : fEnteros.format(ig.seguidores), ig.usuario ? '@' + esc(ig.usuario) + ' · ' + fEnteros.format(ig.publicaciones) + ' publicaciones' : '') +
-    tileEst('Alcance en Instagram', alcance == null ? '–' : fEnteros.format(alcance), alcance == null ? '' : 'Cuentas que vieron algo, sumadas por día') +
+    tileEst('Alcance en Instagram', alcance == null ? '–' : fEnteros.format(alcance), alcance == null ? '' : ig.totales && 'reach' in ig.totales ? 'Cuentas distintas que vieron algo' : 'Cuentas que vieron algo, sumadas por día') +
     tileEst('Seguidores en Facebook', fb.error ? '–' : fEnteros.format(fb.seguidores), fb.nombre ? esc(fb.nombre) : '') + '</div>';
   const graficas = [];
   if (ig.alcancePorDia) { const f = Object.keys(ig.alcancePorDia); graficas.push(graficaDias('Alcance de Instagram por día', f, f.map((k) => ig.alcancePorDia[k]), (v) => fEnteros.format(v))); }
@@ -1005,6 +1040,7 @@ function bloqueMeta(me) {
     graficas.push('<div class="est-graf">' + listaBarras('Lo que recibe el píxel de Meta', filas, 'El píxel todavía no ha recibido nada en este periodo.') + '</div>');
   }
   if (graficas.length) h += '<div class="est-graficas">' + graficas.join('') + '</div>';
+  if (!ig.error) h += bloqueInstagram(ig);
   if (px.sinPermiso) h += '<p class="est-pie" style="margin:12px 0 0">Lo que recibe el píxel se mira en Meta: ' +
     '<a href="https://business.facebook.com/events_manager2/list/dataset/3314865168719686/overview?business_id=1048814831506388" target="_blank" rel="noopener">Administrador de eventos</a>.</p>';
   return h;
