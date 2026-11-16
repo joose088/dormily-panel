@@ -947,7 +947,9 @@ async function cargarEstadisticas(fresco) {
   if (S.vista === 'estadisticas' && !$('capa').innerHTML) render();
   try {
     const t = await S.db.token();
-    const r = await fetch('/api/estadisticas?dias=' + S.est.dias + (fresco ? '&fresco=1' : ''), { headers: { Authorization: 'Bearer ' + t } });
+    // Only Cloudflare runs the statistics endpoint; other copies of the panel (Vercel) ask it there.
+    const api = /\.pages\.dev$|^localhost$/.test(location.hostname) ? '' : 'https://landez-panel.pages.dev';
+    const r = await fetch(api + '/api/estadisticas?dias=' + S.est.dias + (fresco ? '&fresco=1' : ''), { headers: { Authorization: 'Bearer ' + t } });
     if (!(r.headers.get('content-type') || '').includes('application/json')) throw new Error('sin-servidor');
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'Error ' + r.status);

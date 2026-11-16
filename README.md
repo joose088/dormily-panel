@@ -14,7 +14,7 @@ Para entrar, cada uno toca su nombre y escribe el **código del equipo**. El mó
 | Contabilidad | Gastos e ingresos con IVA, facturas adjuntas (foto o PDF), cuentas entre socios («quién debe a quién») y exportación CSV para la gestoría |
 | Proveedores | Estado de cada negociación, condiciones, contactos y siguiente paso |
 | Contenido | Ideas y publicaciones para redes, de idea a publicado |
-| Estadísticas | Ventas de Shopify y visitas de Google Analytics: cifras clave, ventas y visitantes por día, de dónde viene la gente, embudo de compra, páginas y productos. Solo funciona en la versión de Cloudflare (ver abajo) |
+| Estadísticas | Ventas de Shopify y visitas de Google Analytics: cifras clave, ventas y visitantes por día, de dónde viene la gente, embudo de compra, páginas y productos. Funciona en las dos direcciones: la de Vercel pide los datos a la de Cloudflare |
 | Notas, Enlaces | Acuerdos y accesos directos a las herramientas |
 | Actividad | Lo último que ha hecho cada uno |
 
@@ -43,7 +43,7 @@ En el móvil: **Añadir a pantalla de inicio** (Safari: botón Compartir; Chrome
 **Authentication → Usuarios →** en `panel@dormily.es`, menú ⋮ → **Restablecer contraseña** no sirve (el correo no existe): borra el usuario y créalo otra vez con el código nuevo. Los datos no se pierden.
 
 ## Estadísticas (Cloudflare Pages, gratis y sin tarjeta)
-La pestaña «Estadísticas» pide los datos a `functions/api/estadisticas.js`, una función que se ejecuta en Cloudflare Pages. Comprueba que quien pregunta ha entrado con el código del equipo, lee Shopify y Google Analytics con claves que solo están en Cloudflare y guarda la respuesta 10 minutos. En Vercel esa función no existe, así que allí la pestaña avisa de que hay que usar la dirección de Cloudflare.
+La pestaña «Estadísticas» pide los datos a `functions/api/estadisticas.js`, una función que se ejecuta en Cloudflare Pages. Comprueba que quien pregunta ha entrado con el código del equipo, lee Shopify y Google Analytics con claves que solo están en Cloudflare y guarda la respuesta 10 minutos. En Vercel esa función no existe: el panel de Vercel pide los datos a https://landez-panel.pages.dev, que solo acepta peticiones de las direcciones del panel (lista ORIGENES en la función).
 
 ### 1. Publicar el panel en Cloudflare
 1. Crea una cuenta gratuita en https://dash.cloudflare.com/sign-up con `contacto@landezdescanso.es`. No pide tarjeta.

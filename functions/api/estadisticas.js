@@ -391,7 +391,29 @@ async function datosMeta(env, a, dias) {
 
 const seguro = (promesa) => promesa.catch((e) => ({ configurado: true, error: e.message || String(e) }));
 
-export async function onRequestGet({ request, env, waitUntil }) {
+// The Vercel copy of the panel has no server part, so it asks this endpoint from another origin.
+const ORIGENES = ['https://dormily-panel.vercel.app', 'https://landez-panel.pages.dev', 'http://localhost:8766'];
+function conCors(request, respuesta) {
+  const origen = request.headers.get('origin');
+  if (!origen || !ORIGENES.includes(origen)) return respuesta;
+  const r = new Response(respuesta.body, respuesta);
+  r.headers.set('access-control-allow-origin', origen);
+  r.headers.set('vary', 'origin');
+  return r;
+}
+export function onRequestOptions({ request }) {
+  const origen = request.headers.get('origin');
+  if (!ORIGENES.includes(origen)) return new Response(null, { status: 403 });
+  return new Response(null, { status: 204, headers: {
+    'access-control-allow-origin': origen, 'access-control-allow-methods': 'GET, OPTIONS',
+    'access-control-allow-headers': 'authorization', 'access-control-max-age': '86400', vary: 'origin' } });
+}
+
+export async function onRequestGet(contexto) {
+  return conCors(contexto.request, await responder(contexto));
+}
+
+async function responder({ request, env, waitUntil }) {
   const a = ajustes(env);
   const token = (request.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
   try { await verificarFirebase(token, a); } catch (e) { return json({ error: 'Hace falta entrar en el panel con el código del equipo.' }, 401); }
