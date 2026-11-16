@@ -106,7 +106,7 @@
   <h2>1. Por dónde empezar</h2>
   <p>Todo está en el panel, pestaña <b>Gestión</b>. Arriba hay cuatro apartados: <b>Documentos</b>, <b>Productos</b>, <b>Clientes</b> y <b>Datos de la empresa</b>.</p>
   <ol class="pasos">
-    <li><b>Datos de la empresa</b>, una sola vez: razón social, NIF y domicilio. Sin ellos los documentos salen con huecos resaltados.</li>
+    <li><b>Datos de la empresa</b>, una sola vez: razón social, NIF y domicilio, que si faltan salen como huecos resaltados en los documentos.</li>
     <li><b>Productos</b>: dar de alta cada producto que vendéis, con su foto, características y precio. Es lo que luego se busca al hacer un documento.</li>
     <li><b>Documentos</b>: hacer presupuestos, pedidos y albaranes. Los <b>clientes</b> se guardan solos la primera vez que se les hace un documento.</li>
   </ol>
@@ -148,7 +148,7 @@ Plazo de entrega: 7 a 10 días laborables.
     <thead><tr><th>Campo</th><th>Obligatorio</th><th>Qué poner</th><th>Ejemplo</th><th>Sale</th></tr></thead>
     <tbody>
       <tr><td>Nombre</td><td class="ob">Sí</td><td>Nombre con el que lo verá el cliente: tipo de producto, modelo y medida. Corto y claro, sin precios ni promociones.</td><td class="ej">Colchón Landez 135 × 190</td><td class="sale si">Sí, en negrita</td></tr>
-      <tr><td>Referencia</td><td class="ob">Sí</td><td>Código único e interno. No puede repetirse: el panel avisa si ya existe. Recomendado: 3 letras del tipo, guion y la medida; si hay variantes, otro guion y el acabado.<br>COL = colchón, CAN = canapé, BAS = base o somier, ALM = almohada, TEX = textil, ACC = accesorio, SER = servicio.</td><td class="ej">COL-135
+      <tr><td>Referencia</td><td class="ob">Sí</td><td>Código interno y único: si ya existe, el panel avisa al guardar. Recomendado: 3 letras del tipo, guion y la medida; si hay variantes, otro guion y el acabado.<br>COL = colchón, CAN = canapé, BAS = base o somier, ALM = almohada, TEX = textil, ACC = accesorio, SER = servicio.</td><td class="ej">COL-135
 CAN-135-ROB
 SER-MONTAJE</td><td class="sale si">Sí, columna Artículo</td></tr>
       <tr><td>Categoría</td><td class="ob">Sí (viene puesta)</td><td>Colchones, Canapés, Bases y somieres, Almohadas, Textil, Accesorios o Servicios. Sirve para filtrar el catálogo. Usad <b>Servicios</b> para montaje, retirada del colchón viejo, portes especiales, etc.: no cuentan como bulto.</td><td class="ej">Canapés</td><td class="sale no">No</td></tr>
@@ -181,7 +181,7 @@ Funda: tejido 3D desenfundable</td><td class="sale si">Sí</td></tr>
 Hotel Ejemplo, S.L.</td><td class="sale si">Sí</td></tr>
       <tr><td>NIF / DNI</td><td class="ob">No (sí si pide factura)</td><td>DNI o NIE del particular, o NIF de la empresa, sin espacios. Pedidlo siempre a empresas.</td><td class="ej">12345678Z
 B00000000</td><td class="sale si">Sí</td></tr>
-      <tr><td>Código</td><td class="ob">Se pone solo</td><td>Número de cliente correlativo (0001, 0002…). No hace falta tocarlo.</td><td class="ej">0007</td><td class="sale si">Sí, junto a «Cliente»</td></tr>
+      <tr><td>Código</td><td class="ob">Se pone solo</td><td>Número de cliente correlativo (0001, 0002…) que pone el panel.</td><td class="ej">0007</td><td class="sale si">Sí, junto a «Cliente»</td></tr>
       <tr><td>Dirección</td><td class="ob">No</td><td>Calle, número, piso y puerta de facturación.</td><td class="ej">C/ San José, 14, 2.º B</td><td class="sale si">Sí</td></tr>
       <tr><td>CP y localidad</td><td class="ob">No</td><td>Código postal y localidad; provincia entre paréntesis.</td><td class="ej">30510 Yecla (Murcia)</td><td class="sale si">Sí</td></tr>
       <tr><td>País</td><td class="ob">No (viene España)</td><td>Solo hay que cambiarlo si es de fuera.</td><td class="ej">España</td><td class="sale si">Sí</td></tr>
@@ -234,7 +234,7 @@ Pedido 45/2026</td><td class="sale si">Sí</td></tr>
   <div class="tabla"><table class="campos">
     <thead><tr><th>Campo</th><th>Obligatorio</th><th>Qué poner</th><th>Ejemplo</th><th>Sale</th></tr></thead>
     <tbody>
-      <tr><td>Nombre o empresa</td><td class="ob">Sí</td><td>Ver Clientes. Sin cliente no se puede guardar.</td><td class="ej">María López García</td><td class="sale si">Sí</td></tr>
+      <tr><td>Nombre o empresa</td><td class="ob">Sí</td><td>Ver Clientes; el documento no se guarda hasta que tenga cliente.</td><td class="ej">María López García</td><td class="sale si">Sí</td></tr>
       <tr><td>NIF / DNI, Teléfono, Correo</td><td class="ob">No</td><td>Ver Clientes.</td><td class="ej">12345678Z</td><td class="sale si">Sí</td></tr>
       <tr><td>Dirección, CP y localidad, País</td><td class="ob">No</td><td>Dirección de facturación.</td><td class="ej">C/ San José, 14</td><td class="sale si">Sí</td></tr>
       <tr><td>A la atención de</td><td class="ob">No</td><td>Persona de contacto en una empresa.</td><td class="ej">Sr. Martínez</td><td class="sale si">Sí</td></tr>
