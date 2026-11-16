@@ -75,7 +75,8 @@ export function crearGestion(x) {
       empresa: ''
     }[G.sub];
     let html = cabecera('Gestión', 'Productos, clientes, presupuestos, pedidos y albaranes.', acciones) +
-      '<div class="filtros">' + subs.map(([k, n, c]) => '<button class="chip" type="button" data-gsub="' + k + '" aria-pressed="' + (G.sub === k) + '">' + n + (c ? ' <span style="opacity:.6">' + c + '</span>' : '') + '</button>').join('') + '</div>';
+      '<div class="filtros">' + subs.map(([k, n, c]) => '<button class="chip" type="button" data-gsub="' + k + '" aria-pressed="' + (G.sub === k) + '">' + n + (c ? ' <span style="opacity:.6">' + c + '</span>' : '') + '</button>').join('') +
+      '<a class="chip" href="guia-gestion.html" target="_blank" rel="noopener" style="margin-left:auto;text-decoration:none;color:inherit">Guía: qué poner en cada campo</a></div>';
     if (G.sub === 'productos') html += vistaProductos();
     else if (G.sub === 'clientes') html += vistaClientes();
     else if (G.sub === 'empresa') html += vistaEmpresa();
@@ -324,7 +325,7 @@ export function crearGestion(x) {
     const conversion = !nuevo && S.escribir ? (tipo === 'presupuesto' ? '<button type="button" class="btn" id="d-convertir" data-a="pedido">Pasar a pedido</button>' : tipo === 'pedido' ? '<button type="button" class="btn" id="d-convertir" data-a="albaran">Hacer albarán</button>' : '') : '';
 
     $('capa').innerHTML = '<div class="velo" id="velo"><form class="hoja hoja-doc" id="hoja" novalidate>' +
-      '<h2>' + esc(titulo) + ' <span style="color:var(--muted);font-weight:500">' + esc(d.numero) + '</span></h2>' +
+      '<h2 style="display:flex;flex-wrap:wrap;align-items:baseline;gap:8px">' + esc(titulo) + ' <span style="color:var(--muted);font-weight:500">' + esc(d.numero) + '</span><a class="mini" href="guia-gestion.html#documento" target="_blank" rel="noopener" style="margin-left:auto;font-family:var(--f-body)">Guía de campos</a></h2>' +
       '<div class="campos g-tres">' +
         campo('d-numero', 'Número', d.numero) + fechaCampo('d-fecha', 'Fecha', d.fecha) +
         (tipo === 'presupuesto' ? fechaCampo('d-valido', 'Válido hasta', d.validoHasta) : tipo === 'pedido' ? fechaCampo('d-entrega', 'Entrega prevista', d.entregaPrevista) : fechaCampo('d-entregado', 'Fecha de entrega', d.fechaEntrega)) +

@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guía de Gestión</title>
+<meta name="description" content="Qué poner en cada campo de productos, clientes, datos de la empresa, presupuestos, pedidos y albaranes del panel de Landez.">
+<link rel="icon" href="icono.svg">
+<style>
+  :root { --tinta: #111; --gris: #555; --linea: #CFCFCF; --fina: #E6E6E6; --fondo: #F4F4F4; --papel: #FFFFFF; --marca: #2F3BFF; --aviso: #FFF6D6; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --tinta: #EDEDED; --gris: #A9A9A9; --linea: #444; --fina: #333; --fondo: #161616; --papel: #1F1F1F; --marca: #9AA0FF; --aviso: #3A3317; } }
+  :root[data-theme="dark"] { --tinta: #EDEDED; --gris: #A9A9A9; --linea: #444; --fina: #333; --fondo: #161616; --papel: #1F1F1F; --marca: #9AA0FF; --aviso: #3A3317; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fondo); color: var(--tinta); font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif; font-size: 15px; line-height: 1.5; }
+  .pagina { max-width: 980px; margin: 0 auto; padding: 24px 16px 60px; }
+  header.portada { background: var(--papel); border: 1px solid var(--linea); padding: 22px 24px; margin-bottom: 18px; }
+  header.portada h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -.01em; }
+  header.portada p { margin: 0; color: var(--gris); }
+  .acciones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .acciones a, .acciones button { font: inherit; font-size: 14px; font-weight: 700; color: var(--tinta); background: transparent; border: 1px solid var(--tinta); border-radius: 4px; padding: 7px 12px; text-decoration: none; cursor: pointer; }
+  nav.indice { background: var(--papel); border: 1px solid var(--linea); padding: 14px 24px; margin-bottom: 18px; }
+  nav.indice h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--gris); margin: 0 0 6px; }
+  nav.indice ol { margin: 0; padding-left: 20px; columns: 2; column-gap: 32px; }
+  nav.indice a { color: var(--tinta); }
+  section.bloque { background: var(--papel); border: 1px solid var(--linea); padding: 20px 24px; margin-bottom: 18px; }
+  section.bloque > h2 { font-size: 20px; margin: 0 0 6px; padding-bottom: 6px; border-bottom: 2px solid var(--tinta); }
+  h3 { font-size: 16px; margin: 20px 0 6px; }
+  p { margin: 6px 0; }
+  .donde { color: var(--gris); font-size: 14px; }
+  .tabla { overflow-x: auto; margin: 10px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--gris); border-top: 1px solid var(--tinta); border-bottom: 1px solid var(--tinta); padding: 7px 8px; vertical-align: bottom; }
+  td { border-bottom: 1px solid var(--fina); padding: 8px; vertical-align: top; }
+  td:first-child { font-weight: 700; }
+  table.campos { table-layout: fixed; min-width: 760px; }
+  table.campos th:nth-child(1) { width: 16%; } table.campos th:nth-child(2) { width: 12%; } table.campos th:nth-child(3) { width: 40%; }
+  table.campos th:nth-child(4) { width: 20%; } table.campos th:nth-child(5) { width: 12%; }
+  td.ej { font-family: Consolas, 'Courier New', monospace; font-size: 13px; white-space: pre-line; overflow-wrap: anywhere; }
+  .si { font-weight: 700; }
+  .no { color: var(--gris); }
+  .nota { background: var(--aviso); border-left: 3px solid var(--tinta); padding: 10px 14px; margin: 12px 0; font-size: 14px; }
+  .pasos { margin: 8px 0; padding-left: 22px; }
+  .pasos li { margin: 4px 0; }
+  code, kbd { font-family: Consolas, 'Courier New', monospace; font-size: 13px; background: var(--fondo); border: 1px solid var(--fina); border-radius: 3px; padding: 0 4px; }
+  dl.glosario { display: grid; grid-template-columns: 180px 1fr; gap: 6px 16px; margin: 8px 0; }
+  dl.glosario dt { font-weight: 700; }
+  dl.glosario dd { margin: 0; }
+  footer { color: var(--gris); font-size: 13px; text-align: center; margin-top: 24px; }
+  @media (max-width: 700px) {
+    nav.indice ol { columns: 1; }
+    dl.glosario { grid-template-columns: 1fr; }
+    dl.glosario dd { margin-bottom: 8px; }
+    section.bloque, header.portada, nav.indice { padding: 16px; }
+  }
+  @media print {
+    :root { --tinta: #000; --gris: #555; --linea: #BBB; --fina: #DDD; --fondo: #fff; --papel: #fff; --aviso: #F3F3F3; }
+    body { font-size: 10pt; background: #fff; }
+    .pagina { max-width: none; padding: 0; }
+    .acciones { display: none; }
+    header.portada, nav.indice, section.bloque { border: 0; padding: 0; margin-bottom: 8mm; }
+    section.bloque > h2 { break-after: avoid; }
+    .tabla { overflow: visible; }
+    table { font-size: 8.5pt; }
+    table.campos { min-width: 0; }
+    tr { break-inside: avoid; }
+    th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .nota { -webkit-print-color-adjust: exact; print-color-adjust: exact; break-inside: avoid; }
+    a { color: inherit; text-decoration: none; }
+  }
+  @page { size: A4; margin: 14mm 14mm 16mm; @bottom-right { content: "Página " counter(page) " de " counter(pages); font: 8pt Arial, sans-serif; color: #555; } }
+</style>
+</head>
+<body>
+<div class="pagina">
+
+<header class="portada">
+  <h1>Guía de Gestión</h1>
+  <p>Qué poner en cada campo de productos, clientes, datos de la empresa, presupuestos, pedidos y albaranes del panel de Landez Descanso.</p>
+  <div class="acciones">
+    <a href="guia-gestion.pdf" download>Descargar en PDF</a>
+    <button type="button" onclick="window.print()">Imprimir</button>
+    <a href="./#gestion">Volver al panel</a>
+  </div>
+</header>
+
+<nav class="indice" aria-label="Índice">
+  <h2>Índice</h2>
+  <ol>
+    <li><a href="#orden">Por dónde empezar</a></li>
+    <li><a href="#empresa">Datos de la empresa</a></li>
+    <li><a href="#productos">Productos</a></li>
+    <li><a href="#clientes">Clientes</a></li>
+    <li><a href="#documento">Documento: cabecera</a></li>
+    <li><a href="#cliente-doc">Documento: cliente y envío</a></li>
+    <li><a href="#lineas">Documento: productos y líneas</a></li>
+    <li><a href="#cierre">Documento: pago, envío y condiciones</a></li>
+    <li><a href="#flujo">De presupuesto a albarán</a></li>
+    <li><a href="#imprimir">Imprimir y enviar</a></li>
+    <li><a href="#cuentas">Cómo se calculan los importes</a></li>
+    <li><a href="#errores">Errores frecuentes</a></li>
+    <li><a href="#glosario">Glosario</a></li>
+  </ol>
+</nav>
+
+<section class="bloque" id="orden">
+  <h2>1. Por dónde empezar</h2>
+  <p>Todo está en el panel, pestaña <b>Gestión</b>. Arriba hay cuatro apartados: <b>Documentos</b>, <b>Productos</b>, <b>Clientes</b> y <b>Datos de la empresa</b>.</p>
+  <ol class="pasos">
+    <li><b>Datos de la empresa</b>, una sola vez: razón social, NIF y domicilio. Sin ellos los documentos salen con huecos resaltados.</li>
+    <li><b>Productos</b>: dar de alta cada producto que vendéis, con su foto, características y precio. Es lo que luego se busca al hacer un documento.</li>
+    <li><b>Documentos</b>: hacer presupuestos, pedidos y albaranes. Los <b>clientes</b> se guardan solos la primera vez que se les hace un documento.</li>
+  </ol>
+  <p>Los campos con <b>*</b> son obligatorios: sin ellos no se puede guardar. En cada tabla, la columna «Sale» dice si ese dato aparece en el documento impreso que recibe el cliente.</p>
+  <div class="nota">Presupuestos, pedidos y albaranes <b>no son facturas</b>. La factura se hace aparte, con el programa de facturación que use la gestoría.</div>
+</section>
+
+<section class="bloque" id="empresa">
+  <h2>2. Datos de la empresa</h2>
+  <p class="donde">Gestión → Datos de la empresa → Editar. Se rellena una vez y sale en la cabecera y el pie de todos los documentos.</p>
+  <div class="tabla"><table class="campos">
+    <thead><tr><th>Campo</th><th>Obligatorio</th><th>Qué poner</th><th>Ejemplo</th><th>Sale</th></tr></thead>
+    <tbody>
+      <tr><td>Razón social</td><td class="ob">Sí</td><td>El nombre legal del titular, tal como figura en Hacienda. Si sois sociedad, con su forma (S.L., S.C.…). Si factura un autónomo, su nombre y apellidos. Puede no coincidir con la marca comercial.</td><td class="ej">Landez Descanso, S.L.</td><td class="sale si">Sí</td></tr>
+      <tr><td>NIF</td><td class="ob">Sí</td><td>El NIF o CIF del titular, sin espacios ni guiones.</td><td class="ej">B12345678</td><td class="sale si">Sí</td></tr>
+      <tr><td>Teléfono</td><td class="ob">No</td><td>El teléfono de contacto de la tienda. Viene puesto el de la marca.</td><td class="ej">868 353 401</td><td class="sale si">Sí</td></tr>
+      <tr><td>Domicilio</td><td class="ob">Sí</td><td>Calle, número, piso y puerta del domicilio fiscal o del almacén. Solo la calle; el código postal y la localidad van en el campo siguiente.</td><td class="ej">Ctra. de Villena, km 5, nave 3</td><td class="sale si">Sí</td></tr>
+      <tr><td>CP, localidad y provincia</td><td class="ob">No</td><td>Código postal, localidad y, entre paréntesis, la provincia.</td><td class="ej">30510 Yecla (Murcia)</td><td class="sale si">Sí</td></tr>
+      <tr><td>Correo</td><td class="ob">No</td><td>El correo general, no el de un socio.</td><td class="ej">contacto@landezdescanso.es</td><td class="sale si">Sí</td></tr>
+      <tr><td>Web</td><td class="ob">No</td><td>Sin «https://».</td><td class="ej">landezdescanso.es</td><td class="sale si">Sí</td></tr>
+      <tr><td>Registro Mercantil</td><td class="ob">Solo sociedades</td><td>Los datos de inscripción que aparecen en la escritura o en la nota del Registro: registro, tomo, folio, hoja e inscripción. Si sois autónomos o comunidad de bienes, dejadlo vacío.</td><td class="ej">Registro Mercantil de Murcia, tomo 1234, folio 56, hoja MU-78910, inscripción 1.ª</td><td class="sale si">Sí, en el pie</td></tr>
+      <tr><td>Días de validez de los presupuestos</td><td class="ob">No</td><td>Cuántos días se mantiene el precio de un presupuesto. Con este número se calcula sola la fecha «Válido hasta». Por defecto, 15.</td><td class="ej">15</td><td class="sale no">No (sale la fecha)</td></tr>
+      <tr><td>Forma de pago</td><td class="ob">No</td><td>Cómo se paga normalmente. Se copia en cada documento nuevo y allí se puede cambiar.</td><td class="ej">Transferencia, tarjeta o Bizum</td><td class="sale no">No (sale la del documento)</td></tr>
+      <tr><td>Condiciones del presupuesto</td><td class="ob">No</td><td>Una condición por línea: portes, plazo, garantía, devoluciones… Se copian en cada presupuesto nuevo.</td><td class="ej">Portes incluidos a península.
+Plazo de entrega: 7 a 10 días laborables.
+3 años de garantía.</td><td class="sale no">No (salen las del documento)</td></tr>
+      <tr><td>Condiciones del pedido</td><td class="ob">No</td><td>Lo mismo para los pedidos.</td><td class="ej">Plazo de entrega: 7 a 10 días laborables.</td><td class="sale no">Igual</td></tr>
+      <tr><td>Notas del albarán</td><td class="ob">No</td><td>Avisos que se ponen solos en cada albarán.</td><td class="ej">Revise la mercancía antes de firmar.</td><td class="sale no">Igual</td></tr>
+    </tbody>
+  </table></div>
+  <div class="nota">Cambiar estos datos afecta a los documentos que se impriman a partir de ese momento, también a los ya guardados. Las condiciones y la forma de pago, en cambio, quedan copiadas en cada documento y no cambian en los antiguos.</div>
+</section>
+
+<section class="bloque" id="productos">
+  <h2>3. Productos</h2>
+  <p class="donde">Gestión → Productos → + Producto. Para cambiar uno existente: botón «Abrir» en su tarjeta.</p>
+  <p>Cada medida y cada acabado que tenga precio distinto es <b>un producto aparte</b>. Un colchón en 90, 135 y 150 son tres productos; un canapé en roble y en blanco con el mismo precio puede ser uno solo, indicando el acabado en la línea del documento.</p>
+  <div class="tabla"><table class="campos">
+    <thead><tr><th>Campo</th><th>Obligatorio</th><th>Qué poner</th><th>Ejemplo</th><th>Sale</th></tr></thead>
+    <tbody>
+      <tr><td>Nombre</td><td class="ob">Sí</td><td>Nombre con el que lo verá el cliente: tipo de producto, modelo y medida. Corto y claro, sin precios ni promociones.</td><td class="ej">Colchón Landez 135 × 190</td><td class="sale si">Sí, en negrita</td></tr>
+      <tr><td>Referencia</td><td class="ob">Sí</td><td>Código único e interno. No puede repetirse: el panel avisa si ya existe. Recomendado: 3 letras del tipo, guion y la medida; si hay variantes, otro guion y el acabado.<br>COL = colchón, CAN = canapé, BAS = base o somier, ALM = almohada, TEX = textil, ACC = accesorio, SER = servicio.</td><td class="ej">COL-135
+CAN-135-ROB
+SER-MONTAJE</td><td class="sale si">Sí, columna Artículo</td></tr>
+      <tr><td>Categoría</td><td class="ob">Sí (viene puesta)</td><td>Colchones, Canapés, Bases y somieres, Almohadas, Textil, Accesorios o Servicios. Sirve para filtrar el catálogo. Usad <b>Servicios</b> para montaje, retirada del colchón viejo, portes especiales, etc.: no cuentan como bulto.</td><td class="ej">Canapés</td><td class="sale no">No</td></tr>
+      <tr><td>Medidas</td><td class="ob">No</td><td>Ancho × largo × alto, en centímetros, con «×» o «x». Sale como primera característica («Medidas: …»).</td><td class="ej">135 × 190 × 28 cm</td><td class="sale si">Sí</td></tr>
+      <tr><td>Proveedor</td><td class="ob">No</td><td>Quién os lo fabrica o vende. Al escribir aparecen los de la pestaña Proveedores.</td><td class="ej">ECUS</td><td class="sale no">No</td></tr>
+      <tr><td>Características</td><td class="ob">No, pero muy recomendable</td><td><b>Una por línea</b>, con el formato «Qué: cómo». Es el texto gris que sale debajo del nombre. Poned lo que el cliente necesita para saber qué compra: núcleo, firmeza, altura, tejido, acabado, color, garantía específica. Evitad frases comerciales largas.</td><td class="ej">Núcleo: muelle ensacado y viscoelástica
+Firmeza: media
+Altura: 28 cm
+Funda: tejido 3D desenfundable</td><td class="sale si">Sí</td></tr>
+      <tr><td>Foto</td><td class="ob">No</td><td>Una foto del producto, mejor de frente y sobre fondo blanco. Vale una foto del móvil o de la web: el panel la reduce sola. Si una línea tiene foto, sale una columna de fotos en el documento.</td><td class="ej">colchon-135.jpg</td><td class="sale si">Sí, pequeña</td></tr>
+      <tr><td>Precio de venta sin IVA *</td><td class="ob">Sí</td><td>Lo que cobráis por unidad, <b>sin IVA</b>. Si solo sabéis el precio con IVA (el de la web), dividid entre 1,21: 499 € con IVA → 499 / 1,21 = 412,40 € sin IVA. El panel muestra debajo el precio con IVA para comprobarlo. Si es gratis (montaje incluido), poned 0: saldrá «Incluido».</td><td class="ej">412,40</td><td class="sale si">Sí</td></tr>
+      <tr><td>IVA</td><td class="ob">Sí (viene 21 %)</td><td>El tipo de IVA del producto. Colchones, canapés, almohadas, textil y servicios de montaje van al 21 %. Cambiadlo solo si la gestoría os dice otra cosa.</td><td class="ej">21 %</td><td class="sale si">Sí, en los totales</td></tr>
+      <tr><td>Coste de compra sin IVA</td><td class="ob">No</td><td>Lo que os cuesta a vosotros, sin IVA. Es solo para saber el margen; <b>nunca sale</b> en los documentos.</td><td class="ej">230,00</td><td class="sale no">No</td></tr>
+      <tr><td>Peso por unidad (kg)</td><td class="ob">No</td><td>Peso de una unidad embalada, en kilos. Se usa para sumar el peso del envío con el botón «Calcular de los productos».</td><td class="ej">28</td><td class="sale no">Solo en el total del envío</td></tr>
+      <tr><td>Volumen por unidad (m³)</td><td class="ob">No</td><td>Lo que ocupa una unidad embalada, en metros cúbicos: ancho × largo × alto <b>en metros</b>. Colchón embalado de 1,40 × 1,95 × 0,30 m = 0,82 m³. Si va enrollado, medid el rollo.</td><td class="ej">0,82</td><td class="sale no">Solo en el total del envío</td></tr>
+      <tr><td>Bultos por unidad</td><td class="ob">No (viene 1)</td><td>En cuántos paquetes llega una unidad. Un canapé que viene en caja y tapa aparte son 2 bultos. Los servicios no cuentan.</td><td class="ej">2</td><td class="sale no">Solo en el total del envío</td></tr>
+      <tr><td>Se sigue vendiendo</td><td class="ob">—</td><td>Desmarcadlo cuando dejéis de vender un producto. No se borra, para que los documentos antiguos sigan bien, pero deja de salir al buscar.</td><td class="ej">✔</td><td class="sale no">No</td></tr>
+    </tbody>
+  </table></div>
+  <div class="nota">Cambiar un producto <b>no cambia</b> los documentos ya hechos: cada documento guarda su propia copia del nombre, las características y el precio. La foto sí se toma siempre del catálogo.</div>
+</section>
+
+<section class="bloque" id="clientes">
+  <h2>4. Clientes</h2>
+  <p class="donde">Gestión → Clientes. Se crean solos al guardar un documento con la casilla «Guardar o actualizar este cliente en Clientes» marcada. También se pueden dar de alta a mano con + Cliente.</p>
+  <div class="tabla"><table class="campos">
+    <thead><tr><th>Campo</th><th>Obligatorio</th><th>Qué poner</th><th>Ejemplo</th><th>Sale</th></tr></thead>
+    <tbody>
+      <tr><td>Nombre o empresa</td><td class="ob">Sí</td><td>Para un particular, nombre y dos apellidos. Para una empresa, su razón social completa. Escribidlo siempre igual: el panel reconoce al cliente por el nombre.</td><td class="ej">María López García
+Hotel Ejemplo, S.L.</td><td class="sale si">Sí</td></tr>
+      <tr><td>NIF / DNI</td><td class="ob">No (sí si pide factura)</td><td>DNI o NIE del particular, o NIF de la empresa, sin espacios. Pedidlo siempre a empresas.</td><td class="ej">12345678Z
+B00000000</td><td class="sale si">Sí</td></tr>
+      <tr><td>Código</td><td class="ob">Se pone solo</td><td>Número de cliente correlativo (0001, 0002…). No hace falta tocarlo.</td><td class="ej">0007</td><td class="sale si">Sí, junto a «Cliente»</td></tr>
+      <tr><td>Dirección</td><td class="ob">No</td><td>Calle, número, piso y puerta de facturación.</td><td class="ej">C/ San José, 14, 2.º B</td><td class="sale si">Sí</td></tr>
+      <tr><td>CP y localidad</td><td class="ob">No</td><td>Código postal y localidad; provincia entre paréntesis.</td><td class="ej">30510 Yecla (Murcia)</td><td class="sale si">Sí</td></tr>
+      <tr><td>País</td><td class="ob">No (viene España)</td><td>Solo hay que cambiarlo si es de fuera.</td><td class="ej">España</td><td class="sale si">Sí</td></tr>
+      <tr><td>Teléfono</td><td class="ob">No</td><td>Móvil o fijo, con espacios para leerlo bien.</td><td class="ej">600 123 456</td><td class="sale si">Sí</td></tr>
+      <tr><td>Correo</td><td class="ob">No</td><td>Al que se le mandará el documento.</td><td class="ej">maria@ejemplo.es</td><td class="sale si">Sí</td></tr>
+      <tr><td>A la atención de</td><td class="ob">No</td><td>Solo para empresas: la persona o el departamento que lleva la compra.</td><td class="ej">Departamento de compras</td><td class="sale si">Sí, como «Att.»</td></tr>
+      <tr><td>Dirección de envío (5 campos)</td><td class="ob">No</td><td>Solo si entrega y facturación son distintas (una obra, una segunda vivienda…): nombre en el envío, dirección, CP y localidad, país y contacto para la entrega (persona y teléfono). Se copian solos al elegir al cliente en un documento.</td><td class="ej">Hotel Ejemplo · Obra nueva
+C/ del Mar, 25
+03001 Alicante
+Encargado · 600 000 000</td><td class="sale si">Sí, en «Dirección de envío»</td></tr>
+      <tr><td>Notas</td><td class="ob">No</td><td>Lo que convenga recordar: horarios, preferencias, cómo pagó la última vez.</td><td class="ej">Solo por las mañanas.</td><td class="sale no">No</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section class="bloque" id="documento">
+  <h2>5. Documento: cabecera</h2>
+  <p class="donde">Gestión → Documentos → + Presupuesto, + Pedido o + Albarán. Para abrir uno ya hecho, pulsad su fila en la lista.</p>
+  <ul>
+    <li><b>Presupuesto</b>: la oferta antes de que el cliente diga que sí. Tiene fecha de validez y recuadro de «Aceptación del cliente».</li>
+    <li><b>Pedido</b>: el encargo ya aceptado. Lleva fecha de entrega prevista y lo pagado a cuenta.</li>
+    <li><b>Albarán</b>: el papel que firma el cliente al recibir la mercancía. Por defecto sin precios.</li>
+  </ul>
+  <div class="tabla"><table class="campos">
+    <thead><tr><th>Campo</th><th>Obligatorio</th><th>Qué poner</th><th>Ejemplo</th><th>Sale</th></tr></thead>
+    <tbody>
+      <tr><td>Número</td><td class="ob">Sí (se pone solo)</td><td>Se numera solo por tipo y año: P (presupuesto), PED (pedido) y ALB (albarán), año y número de 4 cifras. No lo cambiéis salvo para corregir un error: no puede repetirse.</td><td class="ej">P-2026-0003
+PED-2026-0001
+ALB-2026-0001</td><td class="sale si">Sí</td></tr>
+      <tr><td>Fecha</td><td class="ob">Sí (viene hoy)</td><td>El día en que se hace el documento.</td><td class="ej">16/11/2026</td><td class="sale si">Sí</td></tr>
+      <tr><td>Válido hasta</td><td class="ob">Solo presupuesto</td><td>Hasta cuándo se mantiene el precio. Se calcula con los días de validez de «Datos de la empresa». Con ella se escribe sola la condición «Validez de la oferta: 15 días, hasta el …».</td><td class="ej">01/12/2026</td><td class="sale si">Sí</td></tr>
+      <tr><td>Entrega prevista</td><td class="ob">Solo pedido</td><td>Día aproximado en que llegará al cliente. Contad el plazo del proveedor más el transporte.</td><td class="ej">26/11/2026</td><td class="sale si">Sí</td></tr>
+      <tr><td>Fecha de entrega</td><td class="ob">Solo albarán</td><td>El día real en que se entrega la mercancía.</td><td class="ej">26/11/2026</td><td class="sale si">Sí</td></tr>
+      <tr><td>Estado</td><td class="ob">Sí</td><td>En qué punto está. Presupuesto: Borrador, Enviado, Aceptado o Rechazado. Pedido: En curso, Servido o Cancelado. Albarán: Por entregar o Entregado. Al pasar a pedido o a albarán, el anterior cambia solo.</td><td class="ej">Enviado</td><td class="sale no">No</td></tr>
+      <tr><td>Atendido por</td><td class="ob">No (viene quien lo hace)</td><td>El socio que lleva al cliente.</td><td class="ej">José Carlos</td><td class="sale si">Sí</td></tr>
+      <tr><td>Su referencia</td><td class="ob">No</td><td>La referencia que usa el cliente: su número de pedido, el nombre de la obra o del proyecto. Sobre todo para empresas.</td><td class="ej">Reforma 2.ª planta
+Pedido 45/2026</td><td class="sale si">Sí</td></tr>
+    </tbody>
+  </table></div>
+  <p>En pedidos y albaranes hechos a partir de otro documento aparece además <b>Nuestra ref.</b> con el número del documento de origen. Se pone solo.</p>
+</section>
+
+<section class="bloque" id="cliente-doc">
+  <h2>6. Documento: cliente y envío</h2>
+  <ol class="pasos">
+    <li>Empezad a escribir el nombre en <b>Nombre o empresa</b>. Si el cliente ya existe, aparece en la lista: elegidlo y se rellenan todos sus datos, también la dirección de envío si la tiene.</li>
+    <li>Si es nuevo, rellenad los campos a mano (mismos datos que en <a href="#clientes">Clientes</a>).</li>
+    <li>Dejad marcada <b>Guardar o actualizar este cliente en «Clientes»</b> para que se guarde o se actualice al guardar el documento.</li>
+  </ol>
+  <div class="tabla"><table class="campos">
+    <thead><tr><th>Campo</th><th>Obligatorio</th><th>Qué poner</th><th>Ejemplo</th><th>Sale</th></tr></thead>
+    <tbody>
+      <tr><td>Nombre o empresa</td><td class="ob">Sí</td><td>Ver Clientes. Sin cliente no se puede guardar.</td><td class="ej">María López García</td><td class="sale si">Sí</td></tr>
+      <tr><td>NIF / DNI, Teléfono, Correo</td><td class="ob">No</td><td>Ver Clientes.</td><td class="ej">12345678Z</td><td class="sale si">Sí</td></tr>
+      <tr><td>Dirección, CP y localidad, País</td><td class="ob">No</td><td>Dirección de facturación.</td><td class="ej">C/ San José, 14</td><td class="sale si">Sí</td></tr>
+      <tr><td>A la atención de</td><td class="ob">No</td><td>Persona de contacto en una empresa.</td><td class="ej">Sr. Martínez</td><td class="sale si">Sí</td></tr>
+      <tr><td>Enviar a otra dirección</td><td class="ob">—</td><td>Marcadla si se entrega en un sitio distinto de la dirección del cliente. Aparecen los campos de envío. En el albarán salen siempre.</td><td class="ej">✔</td><td class="sale no">—</td></tr>
+      <tr><td>Nombre en el envío</td><td class="ob">No</td><td>A nombre de quién va el paquete.</td><td class="ej">Hotel Ejemplo · Obra nueva</td><td class="sale si">Sí</td></tr>
+      <tr><td>Dirección de envío, CP y localidad, País</td><td class="ob">No</td><td>Dónde se descarga. Si en un albarán se deja vacía, se usa la del cliente.</td><td class="ej">C/ del Mar, 25
+03001 Alicante</td><td class="sale si">Sí</td></tr>
+      <tr><td>Contacto para la entrega</td><td class="ob">No</td><td>Quién recibe y su teléfono: lo necesita el transportista.</td><td class="ej">Encargado · 600 000 000</td><td class="sale si">Sí</td></tr>
+      <tr><td>Transporte</td><td class="ob">Solo albarán</td><td>Empresa de transporte o «Reparto propio».</td><td class="ej">Reparto propio</td><td class="sale si">Sí</td></tr>
+      <tr><td>Seguimiento</td><td class="ob">Solo albarán</td><td>Número de envío que da la empresa de transporte.</td><td class="ej">TE-000000</td><td class="sale si">Sí</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section class="bloque" id="lineas">
+  <h2>7. Documento: productos y líneas</h2>
+  <h3>Añadir productos del catálogo</h3>
+  <ol class="pasos">
+    <li>En el buscador azul <b>Productos</b>, escribid parte del nombre, la referencia, la categoría o la medida. Valen varias palabras y da igual poner tildes: «colchon 135», «can-135», «canapé roble».</li>
+    <li>Aparece la lista con foto, referencia y precio. Pulsad <kbd>Intro</kbd> para añadir el primero, moveos con <kbd>↑</kbd> <kbd>↓</kbd> o haced clic en el que queráis.</li>
+    <li>Se añade una línea con la foto, la referencia, el nombre, las características, el precio y el IVA del catálogo, y cantidad 1. El buscador se vacía para añadir el siguiente.</li>
+  </ol>
+  <p>Para algo que no está en el catálogo (un portes especial, un arreglo), usad <b>+ Línea libre</b> y escribid a mano.</p>
+  <h3>Campos de cada línea</h3>
+  <div class="tabla"><table class="campos">
+    <thead><tr><th>Campo</th><th>Obligatorio</th><th>Qué poner</th><th>Ejemplo</th><th>Sale</th></tr></thead>
+    <tbody>
+      <tr><td>Ref.</td><td class="ob">No</td><td>Viene del catálogo. En líneas libres, poned una referencia corta o dejadla vacía.</td><td class="ej">COL-135</td><td class="sale si">Sí</td></tr>
+      <tr><td>Descripción</td><td class="ob">Sí</td><td>Viene del catálogo. Se puede cambiar solo para este documento sin tocar el producto.</td><td class="ej">Colchón Landez 135 × 190</td><td class="sale si">Sí, en negrita</td></tr>
+      <tr><td>Características</td><td class="ob">No</td><td>Vienen del catálogo, una por línea. Aquí se añade lo propio de este pedido: color elegido, tela, si va enrollado, etc.</td><td class="ej">Acabado: roble natural
+Tela: gris perla</td><td class="sale si">Sí</td></tr>
+      <tr><td>Cant.</td><td class="ob">Sí (viene 1)</td><td>Unidades. Se pueden poner decimales (2,5 metros de tela).</td><td class="ej">2</td><td class="sale si">Sí</td></tr>
+      <tr><td>Precio</td><td class="ob">Sí (viene del catálogo)</td><td>Precio por unidad <b>sin IVA</b>. Se puede cambiar solo en este documento (precio especial). Con 0 sale «Incluido».</td><td class="ej">412,40</td><td class="sale si">Sí</td></tr>
+      <tr><td>Dto. 1 %</td><td class="ob">No</td><td>Primer descuento en porcentaje, sin el símbolo %. Vacío o 0 si no hay. Si ninguna línea lleva descuento, la columna no sale en el documento.</td><td class="ej">10</td><td class="sale si">Sí, si hay</td></tr>
+      <tr><td>Dto. 2 %</td><td class="ob">No</td><td>Segundo descuento, que se aplica <b>después</b> del primero (por ejemplo, pronto pago). 10 % + 5 % no es un 15 %, sino un 14,5 % (ver <a href="#cuentas">cálculos</a>).</td><td class="ej">5</td><td class="sale si">Sí, si hay</td></tr>
+      <tr><td>IVA</td><td class="ob">Sí (viene del catálogo)</td><td>Tipo de IVA de esa línea. Si hay tipos distintos en un documento, los totales se separan por tipo.</td><td class="ej">21 %</td><td class="sale si">En los totales</td></tr>
+      <tr><td>Importe</td><td class="ob">Se calcula</td><td>Cantidad × precio con los descuentos, sin IVA; el panel lo calcula solo.</td><td class="ej">742,32 €</td><td class="sale si">Sí</td></tr>
+      <tr><td>↑ ↓ ×</td><td class="ob">—</td><td>Subir, bajar o quitar la línea. El orden es el del documento.</td><td class="ej"></td><td class="sale no">—</td></tr>
+    </tbody>
+  </table></div>
+  <p>A la derecha se ven siempre el bruto, los descuentos, la base, el IVA y el total.</p>
+</section>
+
+<section class="bloque" id="cierre">
+  <h2>8. Documento: pago, envío y condiciones</h2>
+  <div class="tabla"><table class="campos">
+    <thead><tr><th>Campo</th><th>Obligatorio</th><th>Qué poner</th><th>Ejemplo</th><th>Sale</th></tr></thead>
+    <tbody>
+      <tr><td>Forma de pago</td><td class="ob">No</td><td>Cómo y cuándo paga. Viene la de «Datos de la empresa». Para empresas, poned plazos y anticipos claros.</td><td class="ej">50 % al aceptar y 50 % antes de la entrega, por transferencia</td><td class="sale si">Sí</td></tr>
+      <tr><td>Pagado a cuenta (€)</td><td class="ob">Solo pedido</td><td>Lo que el cliente ya ha pagado, con IVA. Salen «Pagado» y «Pendiente» bajo el total.</td><td class="ej">300,00</td><td class="sale si">Sí</td></tr>
+      <tr><td>Albarán con precios</td><td class="ob">Solo albarán</td><td>Desmarcado, el albarán sale sin precios (lo normal). Marcadlo si el cliente quiere el albarán valorado.</td><td class="ej">—</td><td class="sale si">Cambia el documento</td></tr>
+      <tr><td>Bultos</td><td class="ob">No</td><td>Número total de paquetes del envío.</td><td class="ej">4</td><td class="sale si">Sí</td></tr>
+      <tr><td>Peso bruto (kg)</td><td class="ob">No</td><td>Peso total con embalaje.</td><td class="ej">101</td><td class="sale si">Sí</td></tr>
+      <tr><td>Peso neto (kg)</td><td class="ob">No</td><td>Peso sin embalaje. Normalmente solo lo pide un transportista o una empresa.</td><td class="ej">95</td><td class="sale si">Sí</td></tr>
+      <tr><td>Volumen (m³)</td><td class="ob">No</td><td>Volumen total del envío.</td><td class="ej">1,64</td><td class="sale si">Sí</td></tr>
+      <tr><td>Calcular de los productos</td><td class="ob">—</td><td>Suma bultos, peso y volumen de las líneas con los datos de cada producto del catálogo. Revisad el resultado y corregid a mano si hace falta.</td><td class="ej"></td><td class="sale no">—</td></tr>
+      <tr><td>Notas</td><td class="ob">No</td><td>Avisos para este documento: horario de entrega, piso sin ascensor, acceso de camión…</td><td class="ej">Tercer piso sin ascensor. Llamar media hora antes.</td><td class="sale si">Sí</td></tr>
+      <tr><td>Condiciones</td><td class="ob">No</td><td>Una por línea. Vienen las de «Datos de la empresa»; se pueden cambiar solo para este documento.</td><td class="ej">Portes incluidos a península.
+3 años de garantía.</td><td class="sale si">Sí, con viñetas</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section class="bloque" id="flujo">
+  <h2>9. De presupuesto a albarán</h2>
+  <ol class="pasos">
+    <li>Haced el <b>presupuesto</b>, guardadlo e imprimidlo o enviadlo en PDF. Cambiad el estado a <b>Enviado</b>.</li>
+    <li>Si el cliente acepta, abrid el presupuesto y pulsad <b>Pasar a pedido</b>. Se abre un pedido nuevo con el mismo cliente, envío y líneas, y con «Nuestra ref.» = número del presupuesto. Poned la entrega prevista y lo pagado a cuenta, y pulsad <b>Guardar</b>. El presupuesto pasa solo a <b>Aceptado</b>.</li>
+    <li>Cuando salga la mercancía, abrid el pedido y pulsad <b>Hacer albarán</b>. Revisad cantidades (si se entrega en partes, dejad solo lo que sale), transporte, seguimiento y bultos, y <b>Guardar</b>. El pedido pasa solo a <b>Servido</b>.</li>
+    <li>Imprimid el albarán, que lo firme el cliente al recibir, y cambiad su estado a <b>Entregado</b>.</li>
+  </ol>
+  <p>Si el cliente rechaza el presupuesto, ponedlo en <b>Rechazado</b>; no lo borréis, sirve para saber cuántos se pierden.</p>
+</section>
+
+<section class="bloque" id="imprimir">
+  <h2>10. Imprimir y enviar</h2>
+  <ol class="pasos">
+    <li>Dentro del documento, pulsad <b>Imprimir o PDF</b>. Se abre en una ventana nueva con la plantilla y el cuadro de impresión.</li>
+    <li>Para enviarlo por correo, en «Destino» elegid <b>Guardar como PDF</b> y guardadlo con su número (P-2026-0003.pdf).</li>
+    <li>Si no se abre nada, el navegador ha bloqueado la ventana: permitid las ventanas emergentes para el panel.</li>
+  </ol>
+  <p>Cada hoja lleva la cabecera, el pie con la protección de datos y «Página X de Y». Lo que salga resaltado en amarillo es un dato que falta en «Datos de la empresa».</p>
+</section>
+
+<section class="bloque" id="cuentas">
+  <h2>11. Cómo se calculan los importes</h2>
+  <p>Ejemplo: 2 colchones a 412,40 € con un 10 % y un 5 % de descuento, IVA del 21 %.</p>
+  <div class="tabla"><table>
+    <thead><tr><th>Paso</th><th>Cuenta</th><th>Resultado</th></tr></thead>
+    <tbody>
+      <tr><td>Neto por unidad</td><td>412,40 × (1 − 0,10) × (1 − 0,05)</td><td>352,60 €</td></tr>
+      <tr><td>Importe de la línea</td><td>2 × 352,60</td><td>705,20 €</td></tr>
+      <tr><td>Bruto</td><td>2 × 412,40 (sin descuentos)</td><td>824,80 €</td></tr>
+      <tr><td>Descuentos</td><td>824,80 − 705,20</td><td>119,60 €</td></tr>
+      <tr><td>Base imponible</td><td>Suma de importes de las líneas</td><td>705,20 €</td></tr>
+      <tr><td>IVA 21 %</td><td>705,20 × 0,21</td><td>148,09 €</td></tr>
+      <tr><td>Total</td><td>Base + IVA</td><td>853,29 €</td></tr>
+    </tbody>
+  </table></div>
+  <p>Precio con IVA a precio sin IVA: dividid entre 1,21 (o 1,10, o 1,04). Precio sin IVA a precio con IVA: multiplicad por 1,21.</p>
+</section>
+
+<section class="bloque" id="errores">
+  <h2>12. Errores frecuentes</h2>
+  <div class="tabla"><table>
+    <thead><tr><th>Qué pasa</th><th>Por qué</th><th>Qué hacer</th></tr></thead>
+    <tbody>
+      <tr><td>El precio sale un 21 % más caro de lo que queríais</td><td>Se puso el precio con IVA en un campo que es sin IVA.</td><td>Dividid entre 1,21 y corregidlo en el producto (y en la línea si ya estaba en un documento).</td></tr>
+      <tr><td>Al buscar, el producto no aparece</td><td>No está dado de alta, está escrito de otra forma o está marcado como que ya no se vende.</td><td>Probad con la referencia o con una sola palabra; revisad en Productos si tiene marcada la casilla «Se sigue vendiendo».</td></tr>
+      <tr><td>«La referencia … ya es de …»</td><td>Dos productos con la misma referencia.</td><td>Añadid el acabado o la variante: CAN-135-ROB, CAN-135-BLA.</td></tr>
+      <tr><td>«Ya hay un … con el número …»</td><td>Se cambió el número a mano y coincide con otro.</td><td>Dejad el número que se propone solo.</td></tr>
+      <tr><td>El cliente sale duplicado en Clientes</td><td>Se escribió su nombre de dos formas.</td><td>Al hacer el documento elegidlo de la lista. Borrad el duplicado en Clientes.</td></tr>
+      <tr><td>Huecos en amarillo en el documento</td><td>Faltan datos en «Datos de la empresa».</td><td>Rellenad razón social, NIF y domicilio.</td></tr>
+      <tr><td>No se abre la ventana para imprimir</td><td>El navegador bloquea ventanas emergentes.</td><td>Permitid las ventanas emergentes para el panel y volved a pulsar.</td></tr>
+      <tr><td>La foto no se ve en el documento</td><td>La línea es libre o el producto no tiene foto.</td><td>Añadid la foto al producto y volved a imprimir.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section class="bloque" id="glosario">
+  <h2>13. Glosario</h2>
+  <dl class="glosario">
+    <dt>Base imponible</dt><dd>Importe sobre el que se calcula el IVA: la suma de las líneas con descuentos y sin IVA.</dd>
+    <dt>Bruto</dt><dd>Suma de cantidad × precio de todas las líneas antes de descuentos.</dd>
+    <dt>Neto</dt><dd>Precio por unidad después de aplicar los descuentos.</dd>
+    <dt>Albarán valorado</dt><dd>Albarán que muestra precios y totales. Por defecto el albarán va sin precios.</dd>
+    <dt>Att.</dt><dd>«A la atención de»: la persona que debe recibir el documento dentro de una empresa.</dd>
+    <dt>Su referencia</dt><dd>Código que da el cliente a su compra o a su obra.</dd>
+    <dt>Nuestra ref.</dt><dd>Número de nuestro documento anterior (el presupuesto del que sale un pedido, o el pedido del que sale un albarán).</dd>
+    <dt>Bulto</dt><dd>Cada paquete físico que se entrega.</dd>
+    <dt>m³</dt><dd>Metros cúbicos: ancho × largo × alto en metros.</dd>
+  </dl>
+</section>
+
+<footer>Landez Descanso · Guía del apartado Gestión del panel del equipo</footer>
+</div>
+</body>
+</html>
