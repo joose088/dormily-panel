@@ -392,7 +392,7 @@ async function datosMeta(env, a, dias) {
 const seguro = (promesa) => promesa.catch((e) => ({ configurado: true, error: e.message || String(e) }));
 
 // The Vercel copy of the panel has no server part, so it asks this endpoint from another origin.
-const ORIGENES = ['https://dormily-panel.vercel.app', 'https://landez-panel.pages.dev', 'http://localhost:8766'];
+const ORIGENES = ['https://landezdescanso.vercel.app', 'https://dormily-panel.vercel.app', 'https://landez-panel.pages.dev', 'http://localhost:8766'];
 function conCors(request, respuesta) {
   const origen = request.headers.get('origin');
   if (!origen || !ORIGENES.includes(origen)) return respuesta;
