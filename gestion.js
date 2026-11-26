@@ -831,7 +831,7 @@ export function crearGestion(x) {
       .map(([k, n]) => '<option value="' + k + '"' + ((d.modalidad || 'simplificada') === k ? ' selected' : '') + '>' + n + '</option>').join('');
 
     $('capa').innerHTML = '<div class="velo" id="velo"><form class="hoja hoja-doc" id="hoja" novalidate>' +
-      '<h2 style="display:flex;flex-wrap:wrap;align-items:baseline;gap:8px">' + esc(titulo) + ' <span style="color:var(--muted);font-weight:500">' + esc(d.numero) + '</span><a class="mini" href="guia-gestion.html#documento" target="_blank" rel="noopener" style="margin-left:auto;font-family:var(--f-body)">Guía de campos</a></h2>' +
+      '<h2 style="display:flex;flex-wrap:wrap;align-items:baseline;gap:8px"><span id="d-titulo">' + esc(titulo) + '</span> <span id="d-titulo-num" style="color:var(--muted);font-weight:500">' + esc(d.numero) + '</span><a class="mini" href="guia-gestion.html#documento" target="_blank" rel="noopener" style="margin-left:auto;font-family:var(--f-body)">Guía de campos</a></h2>' +
       '<div class="campos g-tres">' +
         (factura ? '<div class="campo"><label for="d-modalidad">Tipo de factura</label><select id="d-modalidad"' + ro + '>' + modalidades + '</select></div>' : '') +
         campo('d-numero', 'Número', d.numero) + fechaCampo('d-fecha', factura ? 'Fecha de expedición' : 'Fecha', d.fecha) +
@@ -843,10 +843,12 @@ export function crearGestion(x) {
       '</div>' +
       '<div class="separador">' + (compra ? 'Proveedor' : 'Cliente') + '</div>' +
       '<div class="campos g-tres">' +
-        '<div class="campo ancho"><label for="d-cli-nombre">' + (compra ? 'Proveedor (escribe para buscar entre los de «Proveedores»)' : 'Nombre o empresa (escribe para buscar entre los clientes)') + '</label><input id="d-cli-nombre" list="d-clientes" autocomplete="off" value="' + esc(d.cliente.nombre || '') + '"' + ro + '>' +
-        '<datalist id="d-clientes">' + (compra
-          ? S.proveedores.map((p) => '<option value="' + esc(p.nombre) + '">' + esc(p.que || '') + '</option>').join('')
-          : S.clientes.map((c) => '<option value="' + esc(c.nombre) + '">' + esc([c.codigo, c.nif, c.localidad].filter(Boolean).join(' · ')) + '</option>').join('')) + '</datalist></div>' +
+        (compra
+          ? '<div class="campo ancho"><label for="d-cli-nombre">Proveedor (escribe para buscar entre los de «Proveedores»)</label><input id="d-cli-nombre" list="d-clientes" autocomplete="off" value="' + esc(d.cliente.nombre || '') + '"' + ro + '>' +
+            '<datalist id="d-clientes">' + S.proveedores.map((p) => '<option value="' + esc(p.nombre) + '">' + esc(p.que || '') + '</option>').join('') + '</datalist></div>'
+          // Customers: type part of the name, NIF, code, town or phone and pick from the list; their details fill in.
+          : '<div class="campo ancho"><label for="d-cli-nombre">Cliente: escribe parte del nombre, NIF, teléfono o localidad y elígelo</label><div class="g-cli"><input id="d-cli-nombre" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="d-cli-res" aria-expanded="false" value="' + esc(d.cliente.nombre || '') + '"' + ro + '>' +
+            '<div class="g-resultados" id="d-cli-res" role="listbox" hidden></div></div></div>') +
         campo('d-cli-nif', 'NIF / DNI', d.cliente.nif) + campo('d-cli-tel', 'Teléfono', d.cliente.telefono) + campo('d-cli-correo', 'Correo', d.cliente.correo, ' type="email"') +
         '<div class="campo ancho"><label for="d-cli-dir">Dirección</label><input id="d-cli-dir" value="' + esc(d.cliente.direccion || '') + '"' + ro + '></div>' +
         campo('d-cli-loc', 'CP y localidad', d.cliente.localidad) + campo('d-cli-pais', 'País', d.cliente.pais) + campo('d-cli-att', 'A la atención de', d.cliente.att) +
@@ -1030,16 +1032,59 @@ export function crearGestion(x) {
         if (p.direccion && !v('d-cli-dir')) $('d-cli-dir').value = p.direccion;
         return;
       }
-      const c = S.clientes.find((x) => x.nombre === v('d-cli-nombre'));
-      if (!c) return;
+      const c = S.clientes.find((x) => sinTildes(x.nombre) === sinTildes(v('d-cli-nombre')));
+      if (c) rellenarCon(c);
+    };
+    const rellenarCon = (c) => {
       d.clienteId = c.id;
-      [['d-cli-nif', c.nif], ['d-cli-tel', c.telefono], ['d-cli-correo', c.correo], ['d-cli-dir', c.direccion], ['d-cli-loc', c.localidad], ['d-cli-pais', c.pais], ['d-cli-att', c.att]].forEach(([id, val]) => { $(id).value = val || ''; });
+      $('d-cli-nombre').value = c.nombre || '';
+      [['d-cli-nif', c.nif], ['d-cli-tel', c.telefono], ['d-cli-correo', c.correo], ['d-cli-dir', c.direccion], ['d-cli-loc', c.localidad], ['d-cli-pais', c.pais || 'España'], ['d-cli-att', c.att]].forEach(([id, val]) => { $(id).value = val || ''; });
       if (c.envioDireccion && !factura) {
         $('d-otro-envio').checked = true; $('d-envio').hidden = false;
         [['d-env-nombre', c.envioNombre], ['d-env-dir', c.envioDireccion], ['d-env-loc', c.envioLocalidad], ['d-env-pais', c.envioPais], ['d-env-contacto', c.envioContacto]].forEach(([id, val]) => { $(id).value = val || ''; });
       }
+      // A full invoice needs the customer's NIF: with it, the invoice switches to «completa».
+      if (factura && nuevo && c.nif && $('d-modalidad') && $('d-modalidad').value !== 'completa') { $('d-modalidad').value = 'completa'; $('d-modalidad').dispatchEvent(new Event('change')); }
+      cambiado.valor = true;
     };
     $('d-cli-nombre').addEventListener('change', rellenarCliente);
+    // Customer search: words are matched against name, NIF, code, town, phone and email; arrows and Enter pick one.
+    if ($('d-cli-res')) {
+      const caja = $('d-cli-res'), inp = $('d-cli-nombre');
+      let lista = [], marcado = 0;
+      const textoCliente = (c) => sinTildes([c.codigo, c.nombre, c.nif, c.localidad, c.telefono, c.correo, c.att].join(' '));
+      const buscar = (q) => {
+        const t = sinTildes(q).split(/\s+/).filter(Boolean);
+        return S.clientes.filter((c) => t.every((w) => textoCliente(c).includes(w)))
+          .sort((a, b) => (sinTildes(b.nombre).startsWith(t[0]) ? 1 : 0) - (sinTildes(a.nombre).startsWith(t[0]) ? 1 : 0) || (a.nombre || '').localeCompare(b.nombre || '', 'es')).slice(0, 8);
+      };
+      const cerrarLista = () => { caja.hidden = true; inp.setAttribute('aria-expanded', 'false'); };
+      const pintar = () => {
+        const q = inp.value.trim();
+        lista = q ? buscar(q) : [];
+        if (!q) { cerrarLista(); return; }
+        caja.innerHTML = lista.length ? lista.map((c, i) => '<button type="button" role="option" class="g-res g-res-cli' + (i === marcado ? ' marcado' : '') + '" data-cli="' + esc(c.id) + '"><span><b>' + esc(c.nombre) + '</b><small>' +
+            esc([c.nif, c.localidad, c.telefono].filter(Boolean).join(' · ') || 'Sin más datos') + '</small></span><span class="g-res-precio">' + esc(c.codigo || '') + '</span></button>').join('')
+          : '<div class="g-res-vacio">' + (S.clientes.length ? 'Ningún cliente coincide: es un cliente nuevo. Rellena sus datos y se guardará con el documento.' : 'Todavía no hay clientes: este se guardará al guardar el documento.') + '</div>';
+        caja.hidden = false; inp.setAttribute('aria-expanded', 'true');
+      };
+      inp.addEventListener('input', () => {
+        // Typing another name unlinks the customer picked before, so it is not overwritten with this one's data.
+        const antes = S.clientes.find((c) => c.id === d.clienteId);
+        if (antes && sinTildes(antes.nombre) !== sinTildes(inp.value)) d.clienteId = '';
+        marcado = 0; pintar();
+      });
+      inp.addEventListener('focus', () => { if (inp.value.trim() && !d.clienteId) pintar(); });
+      inp.addEventListener('keydown', (e) => {
+        if (caja.hidden) return;
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); if (lista.length) { marcado = (marcado + (e.key === 'ArrowDown' ? 1 : lista.length - 1)) % lista.length; pintar(); } }
+        else if (e.key === 'Enter') { e.preventDefault(); if (lista[marcado]) { rellenarCon(lista[marcado]); cerrarLista(); } }
+        else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cerrarLista(); }
+      });
+      // mousedown, so the pick happens before the field loses focus.
+      caja.addEventListener('mousedown', (e) => { const b = e.target.closest('[data-cli]'); if (!b) return; e.preventDefault(); const c = S.clientes.find((x) => x.id === b.dataset.cli); if (c) { rellenarCon(c); cerrarLista(); } });
+      inp.addEventListener('blur', () => setTimeout(cerrarLista, 150));
+    }
     $('d-otro-envio').addEventListener('change', (e) => { $('d-envio').hidden = !e.target.checked && tipo !== 'albaran'; });
     if ($('d-calc-log')) $('d-calc-log').onclick = () => {
       const l = logisticaDe(d.lineas);
@@ -1156,7 +1201,8 @@ export function crearGestion(x) {
           : 'Factura completa: lleva tu domicilio fiscal y el nombre, NIF y dirección del cliente. Obligatoria si el cliente es una empresa o la pide.';
       };
       $('d-modalidad').addEventListener('change', () => {
-        if (nuevo) $('d-numero').value = siguienteNumero('factura', v('d-fecha'), false, $('d-modalidad').value);
+        if (nuevo) { $('d-numero').value = siguienteNumero('factura', v('d-fecha'), false, $('d-modalidad').value); $('d-titulo-num').textContent = $('d-numero').value; }
+        $('d-titulo').textContent = tituloDe({ tipo: 'factura', modalidad: $('d-modalidad').value });
         ayudaFactura();
       });
       ayudaFactura();
@@ -1263,6 +1309,10 @@ export const ESTILOS_GESTION = `
   .g-res.marcado, .g-res:hover { background: var(--accent-soft); }
   .g-res-precio { font-variant-numeric: tabular-nums; font-weight: 700; }
   .g-res-vacio { padding: 10px; color: var(--muted); font-size: 13.5px; }
+  .g-cli { position: relative; }
+  .g-cli input { width: 100%; }
+  .g-res-cli { grid-template-columns: minmax(0, 1fr) auto; }
+  .g-res-cli .g-res-precio { font-weight: 400; color: var(--muted); font-size: 12.5px; }
   .g-mini-foto { width: 44px; height: 44px; border-radius: 8px; background: var(--sunk); overflow: hidden; display: grid; place-items: center; }
   .g-mini-foto img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
   .g-mini-foto:empty { background: transparent; }
