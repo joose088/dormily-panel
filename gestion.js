@@ -135,7 +135,8 @@ export function crearGestion(x) {
     const subs = [['documentos', 'Documentos', S.documentos.length], ['productos', 'Productos', S.productos.length], ['escandallos', 'Escandallos', null], ['clientes', 'Clientes', S.clientes.length], ['empresa', 'Datos de la empresa', null]];
     const acciones = {
       documentos: '<button class="btn primario" type="button" data-nuevo="presupuesto">+ Presupuesto</button><button class="btn" type="button" data-nuevo="pedido">+ Pedido de venta</button><button class="btn" type="button" data-nuevo="pedidoCompra">+ Pedido de compra</button><button class="btn" type="button" data-nuevo="albaran">+ Albarán</button>',
-      productos: '<button class="btn primario" type="button" data-nuevo="producto">+ Producto</button>' + (S.escribir ? '<button class="btn" type="button" data-g-azorin="1">Cargar o actualizar la tarifa de Azorín</button>' : ''),
+      productos: '<button class="btn primario" type="button" data-nuevo="producto">+ Producto</button>' + (S.escribir ? '<button class="btn" type="button" data-g-azorin="1">Cargar o actualizar la tarifa de Azorín</button>' : '') +
+        (S.escribir && S.listo.productos && copiasSobrantes().sobran.length ? '<button class="btn" type="button" data-g-repetidos="1">Quitar repetidos (' + copiasSobrantes().sobran.length + ')</button>' : ''),
       escandallos: '',
       clientes: '<button class="btn primario" type="button" data-nuevo="cliente">+ Cliente</button>',
       empresa: ''
@@ -187,7 +188,7 @@ export function crearGestion(x) {
     const repetido = (p) => cuenta((o) => p.ref && sinTildes(o.ref) === sinTildes(p.ref)) > 1 || cuenta((o) => sinTildes(o.nombre) === sinTildes(p.nombre)) > 1;
     const usos = (p) => S.documentos.filter((d) => (d.lineas || []).some((l) => l.productoId === p.id)).length;
     const nRep = lista.filter(repetido).length;
-    if (nRep) html += '<div class="est-aviso">Hay ' + nRep + ' productos repetidos (misma referencia o mismo nombre), marcados con «Repetido». Abre el que no esté en ningún documento y pulsa «Eliminar».</div>';
+    if (nRep) html += '<div class="est-aviso">Hay ' + nRep + ' productos repetidos (misma referencia o mismo nombre), marcados con «Repetido». Pulsa «Quitar repetidos» arriba para borrar las copias que sobran' + (S.escribir ? '' : ' (hace falta permiso de edición)') + '.</div>';
     return html + '<div class="rejilla-cards g-productos">' + lista.map((p) => {
       const iva = Number(p.iva ?? 21), vs = variantesDe(p), gs = gruposDe(p), pr = desde(p);
       const rep = repetido(p), u = rep ? usos(p) : 0;
@@ -658,6 +659,36 @@ export function crearGestion(x) {
     return vs.concat(quedan).sort((x, y) => motorUltimo(x) - motorUltimo(y));
   }
   const firmaMedidas = (vs) => vs.map((v) => claveMedida(v) + '=' + Number(v.coste || 0) + '/' + Number(v.pvpMin || 0)).sort().join(';');
+  // Products with the same reference (the tariff loaded twice): keep the copy used in documents
+  // (or, failing that, the one with a photo, more sizes, or the oldest) and the rest can go. Copies used in documents are never removed.
+  function copiasSobrantes() {
+    const usos = (p) => S.documentos.filter((d) => (d.lineas || []).some((l) => l.productoId === p.id)).length;
+    const grupos = new Map();
+    for (const p of S.productos) { const k = sinTildes(p.ref).trim(); if (!k) continue; if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(p); }
+    const sobran = [], usadas = [];
+    for (const g of grupos.values()) {
+      if (g.length < 2) continue;
+      const orden = g.map((p) => ({ p, u: usos(p) })).sort((a, b) => b.u - a.u || (b.p.foto ? 1 : 0) - (a.p.foto ? 1 : 0) ||
+        variantesDe(b.p).length - variantesDe(a.p).length || String(a.p.creado || '').localeCompare(String(b.p.creado || '')));
+      for (const x of orden.slice(1)) (x.u ? usadas : sobran).push({ p: x.p, queda: orden[0].p });
+    }
+    return { sobran, usadas };
+  }
+  async function quitarRepetidos() {
+    if (!S.escribir || !S.listo.productos || !S.listo.documentos) { aviso('Espera a que terminen de cargar los productos y los documentos.'); return; }
+    const { sobran, usadas } = copiasSobrantes();
+    if (!sobran.length) { aviso('No hay productos repetidos que se puedan quitar.'); return; }
+    if (!confirm('Hay ' + sobran.length + ' productos repetidos (misma referencia). Se borra la copia que sobra de cada uno y se queda la que está en documentos o tiene foto. ' +
+      'Las copias que salen en algún documento no se tocan. ¿Borrar las ' + sobran.length + ' copias?')) return;
+    await escribir(async () => {
+      for (let i = 0; i < sobran.length; i += 20) {
+        await Promise.all(sobran.slice(i, i + 20).map(({ p, queda }) => (p.foto && !queda.foto
+          ? col('productos').doc(queda.id).update({ foto: p.foto }).then(() => { queda.foto = p.foto; }) // keep a photo that was only on the copy
+          : Promise.resolve()).then(() => col('productos').doc(p.id).delete())));
+      }
+    }, sobran.length + ' productos repetidos quitados' + (usadas.length ? '. Quedan ' + usadas.length + ' copias que están en documentos: revísalas a mano.' : ''), 'quitó ' + sobran.length + ' productos repetidos');
+  }
+
   let cargandoAzorin = false;
   async function cargarAzorin() {
     if (!S.escribir) return;
@@ -1160,6 +1191,7 @@ export function crearGestion(x) {
     if (b.dataset.escCat) { formEscCategoria(b.dataset.escCat); return true; }
     if (b.dataset.escProd) { const p = producto(b.dataset.escProd); if (p) formEscProducto(p); return true; }
     if (b.dataset.gAzorin) { cargarAzorin(); return true; }
+    if (b.dataset.gRepetidos) { quitarRepetidos(); return true; }
     return false;
   }
   function alEscribir(e) {
