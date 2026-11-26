@@ -1,7 +1,7 @@
 // Gestión: catálogo de productos, clientes y documentos (presupuestos, pedidos y albaranes).
 // El documento se monta buscando productos del catálogo: al elegir uno se añade con su foto, características y precio.
 // Recibe del panel (index.html) su estado y sus utilidades; devuelve la vista y los formularios.
-import { documentoHTML, ESTILOS_DOCUMENTO, calcular, EMPRESA, TIPOS, PREFIJO_COMPRA, esCompra, tituloDe } from './documento.js';
+import { documentoHTML, ESTILOS_DOCUMENTO, calcular, EMPRESA, TIPOS, PREFIJO_COMPRA, PREFIJO_SIMPLIFICADA, esCompra, esSimplificada, tituloDe } from './documento.js';
 import { desglose, precioExtra, costeNeto, costeCompra, datosCalculo, escandalloDe, ESCANDALLO_BASE, TIPOS_COSTE, REDONDEOS } from './escandallo.js';
 
 export const CATEGORIAS = ['Colchones', 'Canapés', 'Bases y somieres', 'Cabezales', 'Almohadas', 'Textil', 'Accesorios', 'Servicios'];
@@ -21,17 +21,21 @@ const GRUPOS_TIPICOS = {
 export const ESTADOS_DOC = {
   presupuesto: [['borrador', 'Borrador'], ['enviado', 'Enviado'], ['aceptado', 'Aceptado'], ['rechazado', 'Rechazado']],
   pedido: [['abierto', 'En curso'], ['servido', 'Servido'], ['cancelado', 'Cancelado']],
-  albaran: [['pendiente', 'Por entregar'], ['entregado', 'Entregado']]
+  albaran: [['pendiente', 'Por entregar'], ['entregado', 'Entregado']],
+  factura: [['emitida', 'Emitida'], ['cobrada', 'Cobrada'], ['anulada', 'Anulada']]
 };
+// Highest total allowed on a simplified invoice in retail (Reglamento de facturación, art. 4).
+const MAX_SIMPLIFICADA = 3000;
 const ESTADOS_COMPRA = [['abierto', 'En curso'], ['recibido', 'Recibido'], ['cancelado', 'Cancelado']];
 const estadosDe = (d) => (esCompra(d) ? ESTADOS_COMPRA : ESTADOS_DOC[d.tipo] || []);
 // Name in the panel list: sales orders say so, to tell them apart from purchase orders.
 const nombreTipo = (d) => (d.tipo === 'pedido' ? (esCompra(d) ? 'Pedido de compra' : 'Pedido de venta') : tituloDe(d));
-const CLASE_ESTADO = { aceptado: 'ok', servido: 'ok', entregado: 'ok', recibido: 'ok', rechazado: 'bad', cancelado: 'bad', enviado: 'azul', abierto: 'azul', pendiente: 'warn', borrador: '' };
+const CLASE_ESTADO = { aceptado: 'ok', servido: 'ok', entregado: 'ok', recibido: 'ok', rechazado: 'bad', cancelado: 'bad', enviado: 'azul', abierto: 'azul', pendiente: 'warn', borrador: '', emitida: 'azul', cobrada: 'ok', anulada: 'bad' };
 const CONDICIONES_BASE = {
   presupuesto: 'Portes incluidos a península.\nPlazo de entrega: 7 a 10 días laborables desde la aceptación.\n3 años de garantía.',
   pedido: 'Plazo de entrega: 7 a 10 días laborables.\n3 años de garantía.',
-  albaran: ''
+  albaran: '',
+  factura: ''
 };
 const sinTildes = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const decimal = (v) => (v === '' || v == null ? '' : String(v).replace('.', ','));
@@ -60,8 +64,10 @@ export function crearGestion(x) {
     for (const k of Object.keys(e)) if (guardado[k]) e[k] = guardado[k];
     return e;
   }
-  function siguienteNumero(tipo, fecha, compra) {
-    const pre = (compra ? PREFIJO_COMPRA : TIPOS[tipo].prefijo) + '-' + (fecha || hoyIso()).slice(0, 4) + '-';
+  // Each series is correlative per year: P-, PED-, PC-, ALB-, F- (full invoices) and FS- (simplified invoices).
+  function siguienteNumero(tipo, fecha, compra, modalidad) {
+    const prefijo = compra ? PREFIJO_COMPRA : tipo === 'factura' && modalidad === 'simplificada' ? PREFIJO_SIMPLIFICADA : TIPOS[tipo].prefijo;
+    const pre = prefijo + '-' + (fecha || hoyIso()).slice(0, 4) + '-';
     let max = 0;
     S.documentos.forEach((d) => { if (d.tipo === tipo && String(d.numero || '').startsWith(pre)) max = Math.max(max, parseInt(d.numero.slice(pre.length), 10) || 0); });
     return pre + String(max + 1).padStart(4, '0');
@@ -133,14 +139,14 @@ export function crearGestion(x) {
     const G = S.gestion;
     const subs = [['documentos', 'Documentos', S.documentos.length], ['productos', 'Productos', S.productos.length], ['escandallos', 'Escandallos', null], ['clientes', 'Clientes', S.clientes.length], ['empresa', 'Datos de la empresa', null]];
     const acciones = {
-      documentos: '<button class="btn primario" type="button" data-nuevo="presupuesto">+ Presupuesto</button><button class="btn" type="button" data-nuevo="pedido">+ Pedido de venta</button><button class="btn" type="button" data-nuevo="pedidoCompra">+ Pedido de compra</button><button class="btn" type="button" data-nuevo="albaran">+ Albarán</button>',
+      documentos: '<button class="btn primario" type="button" data-nuevo="presupuesto">+ Presupuesto</button><button class="btn" type="button" data-nuevo="pedido">+ Pedido de venta</button><button class="btn" type="button" data-nuevo="pedidoCompra">+ Pedido de compra</button><button class="btn" type="button" data-nuevo="albaran">+ Albarán</button><button class="btn" type="button" data-nuevo="factura">+ Factura</button>',
       productos: '<button class="btn primario" type="button" data-nuevo="producto">+ Producto</button>' +
         (S.escribir && S.listo.productos && copiasSobrantes().sobran.length ? '<button class="btn" type="button" data-g-repetidos="1">Quitar repetidos (' + copiasSobrantes().sobran.length + ')</button>' : ''),
       escandallos: '',
       clientes: '<button class="btn primario" type="button" data-nuevo="cliente">+ Cliente</button>',
       empresa: ''
     }[G.sub];
-    let html = cabecera('Gestión', 'Productos, escandallos, clientes, presupuestos, pedidos y albaranes.', acciones) +
+    let html = cabecera('Gestión', 'Productos, escandallos, clientes, presupuestos, pedidos, albaranes y facturas.', acciones) +
       '<div class="filtros">' + subs.map(([k, n, c]) => '<button class="chip" type="button" data-gsub="' + k + '" aria-pressed="' + (G.sub === k) + '">' + n + (c ? ' <span style="opacity:.6">' + c + '</span>' : '') + '</button>').join('') +
       '<a class="chip" href="guia-gestion.html" target="_blank" rel="noopener" style="margin-left:auto;text-decoration:none;color:inherit">Guía: qué poner en cada campo</a></div>';
     if (G.sub === 'productos') html += vistaProductos();
@@ -159,7 +165,7 @@ export function crearGestion(x) {
     const lista = S.documentos.filter((d) => G.tipo === 'todos' || (G.tipo === 'compra' ? esCompra(d) : d.tipo === G.tipo && !esCompra(d)))
       .filter((d) => !q || sinTildes([d.numero, (d.cliente || {}).nombre, d.suReferencia].join(' ')).includes(q))
       .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '') || (b.creado || '').localeCompare(a.creado || ''));
-    let html = '<div class="filtros">' + [['todos', 'Todos'], ['presupuesto', 'Presupuestos'], ['pedido', 'Pedidos de venta'], ['compra', 'Pedidos de compra'], ['albaran', 'Albaranes']]
+    let html = '<div class="filtros">' + [['todos', 'Todos'], ['presupuesto', 'Presupuestos'], ['pedido', 'Pedidos de venta'], ['compra', 'Pedidos de compra'], ['albaran', 'Albaranes'], ['factura', 'Facturas']]
       .map(([k, n]) => '<button class="chip" type="button" data-gtipo="' + k + '" aria-pressed="' + (G.tipo === k) + '">' + n + '</button>').join('') + buscador('Buscar por número, cliente o proveedor') + '</div>';
     if (!S.documentos.length) return html + '<div class="vacio">Todavía no hay documentos. Empieza con «+ Presupuesto». Antes conviene dar de alta los productos en «Productos».</div>';
     if (!lista.length) return html + '<div class="vacio">Nada con este filtro.</div>';
@@ -219,9 +225,11 @@ export function crearGestion(x) {
 
   function vistaEmpresa() {
     const e = empresa(), g = ajustesEmpresa();
-    const faltan = ['razonSocial', 'nif', 'domicilio'].filter((k) => !g[k]);
-    return (faltan.length ? '<div class="est-aviso">Faltan datos que deben salir en los documentos: ' + faltan.map((k) => ({ razonSocial: 'razón social', nif: 'NIF', domicilio: 'domicilio' }[k])).join(', ') + '.</div>' : '') +
-      '<div class="card" style="margin-top:12px;max-width:640px"><h3>' + esc(e.razonSocial) + '</h3><div class="txt">NIF ' + esc(e.nif) + '\n' + esc(e.domicilio) + '\n' + esc(e.localidad) + '\n' + esc(e.telefono) + ' · ' + esc(e.correo) + '\n' + esc(e.web) + (e.registro ? '\n' + esc(e.registro) : '') + '</div>' +
+    const faltan = ['razonSocial', 'nif'].filter((k) => !g[k]);
+    return (faltan.length ? '<div class="est-aviso">Faltan datos que deben salir en los documentos: ' + faltan.map((k) => ({ razonSocial: 'nombre o razón social', nif: 'NIF' }[k])).join(', ') + '.</div>' : '') +
+      (!g.domicilio ? '<div class="est-aviso">Sin el domicilio fiscal no se pueden hacer facturas completas (las simplificadas sí).</div>' : '') +
+      '<div class="card" style="margin-top:12px;max-width:640px"><h3>' + esc(e.razonSocial) + '</h3><div class="txt">NIF ' + esc(e.nif) + '\n' + esc(e.telefono) + ' · ' + esc(e.correo) + '\n' + esc(e.web) + '</div>' +
+      '<div class="txt" style="margin-top:8px;color:var(--muted)">Solo en facturas completas: ' + (g.domicilio ? esc(g.domicilio + ', ' + (g.localidad || '')) : 'sin domicilio') + (e.registro ? '\n' + esc(e.registro) : '') + '</div>' +
       '<div class="pie"><span>Validez de los presupuestos: ' + (g.validez || 15) + ' días</span><span class="der">' + (S.escribir ? '<button class="mini" type="button" data-nuevo="empresa">Editar</button>' : '') + '<a class="mini" href="plantilla.html" target="_blank" rel="noopener">Ver la plantilla</a></span></div></div>';
   }
 
@@ -707,14 +715,16 @@ export function crearGestion(x) {
   function formEmpresa() {
     const g = ajustesEmpresa();
     const campos = [
-      { n: 'razonSocial', l: 'Razón social', req: true, ancho: true, max: 160 },
-      { n: 'nif', l: 'NIF', req: true, max: 20 },
+      { n: 'sepA', l: 'En todos los documentos (bastan para la factura simplificada)', t: 'sep' },
+      { n: 'razonSocial', l: 'Nombre y apellidos del autónomo (o razón social)', req: true, ancho: true, max: 160 },
+      { n: 'nif', l: 'NIF (el DNI con la letra)', req: true, max: 20 },
       { n: 'telefono', l: 'Teléfono', max: 40 },
-      { n: 'domicilio', l: 'Domicilio', req: true, ancho: true, max: 160 },
-      { n: 'localidad', l: 'CP, localidad y provincia', ancho: true, max: 120 },
       { n: 'correo', l: 'Correo', max: 120 },
       { n: 'web', l: 'Web', max: 120 },
-      { n: 'registro', l: 'Registro Mercantil (si sois sociedad)', ancho: true, max: 240, ph: 'Registro Mercantil de Murcia, tomo …, folio …, hoja …' },
+      { n: 'sepF', l: 'Solo en facturas completas (no sale en presupuestos, pedidos, albaranes ni facturas simplificadas)', t: 'sep' },
+      { n: 'domicilio', l: 'Domicilio fiscal (calle y número)', ancho: true, max: 160, ph: 'El del modelo 036' },
+      { n: 'localidad', l: 'CP, localidad y provincia', ancho: true, max: 120 },
+      { n: 'registro', l: 'Registro Mercantil (solo si sois sociedad)', ancho: true, max: 240, ph: 'Registro Mercantil de Murcia, tomo …, folio …, hoja …' },
       { n: 'sepC', l: 'Valores que se ponen solos en cada documento nuevo', t: 'sep' },
       { n: 'validez', l: 'Días de validez de los presupuestos', t: 'number', max: 3 },
       { n: 'formaPago', l: 'Forma de pago', max: 200 },
@@ -727,7 +737,7 @@ export function crearGestion(x) {
     abrirHoja({
       titulo: 'Datos de la empresa', campos, valores,
       alGuardar(d) {
-        delete d.sepC;
+        delete d.sepC; delete d.sepA; delete d.sepF;
         d.validez = Math.max(1, parseInt(d.validez, 10) || 15);
         return escribir(() => col('ajustes').doc('empresa').set(d), 'Datos guardados', 'cambió los datos de la empresa para los documentos');
       }
@@ -739,13 +749,15 @@ export function crearGestion(x) {
     const g = ajustesEmpresa();
     const fecha = hoyIso();
     const compra = tipo === 'pedido' && sentido === 'compra';
+    // An invoice is full when the customer gave a NIF (a company, or someone who asked for it); otherwise simplified.
+    const modalidad = tipo !== 'factura' ? '' : (base && base.modalidad) || (base && base.cliente && base.cliente.nif ? 'completa' : 'simplificada');
     const d = Object.assign({
-      tipo, fecha, numero: siguienteNumero(tipo, fecha, compra), estado: ESTADOS_DOC[tipo][0][0], comercial: S.yo || '',
+      tipo, fecha, numero: siguienteNumero(tipo, fecha, compra, modalidad), estado: ESTADOS_DOC[tipo][0][0], comercial: S.yo || '',
       cliente: { pais: 'España' }, envio: {}, lineas: [], logistica: {},
       formaPago: compra ? '' : g.formaPago || '', notas: '',
       // A purchase order carries no customer conditions; whatever we ask the supplier goes in Notas.
-      condiciones: compra ? [] : lineasDe({ presupuesto: g.condPresupuesto ?? CONDICIONES_BASE.presupuesto, pedido: g.condPedido ?? CONDICIONES_BASE.pedido, albaran: g.condAlbaran ?? CONDICIONES_BASE.albaran }[tipo])
-    }, compra ? { sentido: 'compra' } : {}, base || {});
+      condiciones: compra ? [] : lineasDe({ presupuesto: g.condPresupuesto ?? CONDICIONES_BASE.presupuesto, pedido: g.condPedido ?? CONDICIONES_BASE.pedido, albaran: g.condAlbaran ?? CONDICIONES_BASE.albaran, factura: CONDICIONES_BASE.factura }[tipo])
+    }, compra ? { sentido: 'compra' } : {}, modalidad ? { modalidad } : {}, base || {}, modalidad ? { modalidad } : {});
     if (tipo === 'presupuesto' && !d.validoHasta) d.validoHasta = sumaDias(fecha, Number(g.validez) || 15);
     return d;
   }
@@ -808,13 +820,23 @@ export function crearGestion(x) {
     const personas = Object.keys(PERSONAS).filter((k) => k !== 'todos').map((k) => '<option value="' + k + '"' + (d.comercial === k ? ' selected' : '') + '>' + esc(PERSONAS[k].n) + '</option>').join('');
     const env = d.envio;
     const otroEnvio = !!(env.direccion || env.nombre);
-    const conversion = !nuevo && S.escribir && !compra ? (tipo === 'presupuesto' ? '<button type="button" class="btn" id="d-convertir" data-a="pedido">Pasar a pedido</button>' : tipo === 'pedido' ? '<button type="button" class="btn" id="d-convertir" data-a="albaran">Hacer albarán</button>' : '') : '';
+    const factura = tipo === 'factura';
+    // Gender of the document name in messages («el albarán», «la factura»).
+    const el = factura ? 'la ' : 'el ', guardadoTxt = factura ? ' guardada' : ' guardado', eliminadoTxt = factura ? ' eliminada' : ' eliminado';
+    const botonConv = (a, txt) => '<button type="button" class="btn" data-convertir="' + a + '">' + txt + '</button>';
+    const conversion = !nuevo && S.escribir && !compra ? (tipo === 'presupuesto' ? botonConv('pedido', 'Pasar a pedido')
+      : tipo === 'pedido' ? botonConv('albaran', 'Hacer albarán') + botonConv('factura', 'Hacer factura')
+      : tipo === 'albaran' ? botonConv('factura', 'Hacer factura') : '') : '';
+    const modalidades = [['simplificada', 'Simplificada (hasta 3.000 €, sin domicilio)'], ['completa', 'Completa (con domicilio y NIF del cliente)']]
+      .map(([k, n]) => '<option value="' + k + '"' + ((d.modalidad || 'simplificada') === k ? ' selected' : '') + '>' + n + '</option>').join('');
 
     $('capa').innerHTML = '<div class="velo" id="velo"><form class="hoja hoja-doc" id="hoja" novalidate>' +
       '<h2 style="display:flex;flex-wrap:wrap;align-items:baseline;gap:8px">' + esc(titulo) + ' <span style="color:var(--muted);font-weight:500">' + esc(d.numero) + '</span><a class="mini" href="guia-gestion.html#documento" target="_blank" rel="noopener" style="margin-left:auto;font-family:var(--f-body)">Guía de campos</a></h2>' +
       '<div class="campos g-tres">' +
-        campo('d-numero', 'Número', d.numero) + fechaCampo('d-fecha', 'Fecha', d.fecha) +
-        (tipo === 'presupuesto' ? fechaCampo('d-valido', 'Válido hasta', d.validoHasta) : tipo === 'pedido' ? fechaCampo('d-entrega', 'Entrega prevista', d.entregaPrevista) : fechaCampo('d-entregado', 'Fecha de entrega', d.fechaEntrega)) +
+        (factura ? '<div class="campo"><label for="d-modalidad">Tipo de factura</label><select id="d-modalidad"' + ro + '>' + modalidades + '</select></div>' : '') +
+        campo('d-numero', 'Número', d.numero) + fechaCampo('d-fecha', factura ? 'Fecha de expedición' : 'Fecha', d.fecha) +
+        (factura ? fechaCampo('d-operacion', 'Fecha de la venta (si es otra)', d.fechaOperacion)
+          : tipo === 'presupuesto' ? fechaCampo('d-valido', 'Válido hasta', d.validoHasta) : tipo === 'pedido' ? fechaCampo('d-entrega', 'Entrega prevista', d.entregaPrevista) : fechaCampo('d-entregado', 'Fecha de entrega', d.fechaEntrega)) +
         '<div class="campo"><label for="d-estado">Estado</label><select id="d-estado"' + ro + '>' + estados + '</select></div>' +
         '<div class="campo"><label for="d-comercial">' + (compra ? 'Pedido por' : 'Atendido por') + '</label><select id="d-comercial"' + ro + '><option value=""></option>' + personas + '</select></div>' +
         campo('d-suref', 'Su referencia', d.suReferencia, ' maxlength="80"') +
@@ -829,9 +851,10 @@ export function crearGestion(x) {
         '<div class="campo ancho"><label for="d-cli-dir">Dirección</label><input id="d-cli-dir" value="' + esc(d.cliente.direccion || '') + '"' + ro + '></div>' +
         campo('d-cli-loc', 'CP y localidad', d.cliente.localidad) + campo('d-cli-pais', 'País', d.cliente.pais) + campo('d-cli-att', 'A la atención de', d.cliente.att) +
         (compra ? '' : '<label class="chk-linea campo ancho"><input type="checkbox" id="d-cli-guardar" checked' + ro + '> Guardar o actualizar este cliente en «Clientes»</label>') +
-        '<label class="chk-linea campo ancho"><input type="checkbox" id="d-otro-envio"' + (otroEnvio ? ' checked' : '') + ro + '> ' + (compra ? 'Entregar en otra dirección (si no, en la nuestra)' : 'Enviar a otra dirección') + '</label>' +
+        '<label class="chk-linea campo ancho"' + (factura ? ' hidden' : '') + '><input type="checkbox" id="d-otro-envio"' + (otroEnvio ? ' checked' : '') + ro + '> ' + (compra ? 'Entregar en otra dirección (si no, en la nuestra)' : 'Enviar a otra dirección') + '</label>' +
+        (factura ? '<p class="campo ancho" id="d-fac-ayuda" style="margin:0;font-size:13px;color:var(--muted)"></p>' : '') +
       '</div>' +
-      '<div class="campos g-tres" id="d-envio"' + (otroEnvio || tipo === 'albaran' ? '' : ' hidden') + '>' +
+      '<div class="campos g-tres" id="d-envio"' + (!factura && (otroEnvio || tipo === 'albaran') ? '' : ' hidden') + '>' +
         '<div class="campo ancho"><label for="d-env-nombre">Nombre en el envío</label><input id="d-env-nombre" value="' + esc(env.nombre || '') + '"' + ro + '></div>' +
         '<div class="campo ancho"><label for="d-env-dir">Dirección de envío</label><input id="d-env-dir" value="' + esc(env.direccion || '') + '"' + ro + '></div>' +
         campo('d-env-loc', 'CP y localidad', env.localidad) + campo('d-env-pais', 'País', env.pais) + campo('d-env-contacto', 'Contacto para la entrega', env.contacto) +
@@ -843,16 +866,17 @@ export function crearGestion(x) {
       '<div id="d-lineas" class="g-lineas"></div>' +
       '<div class="g-cierre"><div class="campos g-tres">' +
         campo('d-forma', 'Forma de pago', d.formaPago, ' maxlength="200"') +
-        (tipo === 'pedido' ? campo('d-pagado', 'Pagado a cuenta (€)', decimal(d.pagado), ' inputmode="decimal"') : '') +
+        (tipo === 'pedido' ? campo('d-pagado', 'Pagado a cuenta (€)', decimal(d.pagado), ' inputmode="decimal"') : factura ? campo('d-pagado', 'Cobrado (€)', decimal(d.pagado), ' inputmode="decimal"') : '') +
         (S.escribir && !compra ? '<div class="campo"><label for="d-dtocom">Descuento comercial a todas las líneas (%)</label><div class="g-dtocom"><input id="d-dtocom" inputmode="decimal" placeholder="Ej.: 10"><button type="button" class="btn" id="d-dtocom-aplicar">Aplicar</button></div></div>' : '') +
         (tipo === 'albaran' ? '<label class="chk-linea campo"><input type="checkbox" id="d-valorado"' + (d.valorado ? ' checked' : '') + ro + '> Albarán con precios</label>' : '') +
-        campo('d-bultos', 'Bultos', decimal(d.logistica.bultos), ' inputmode="decimal"') + campo('d-peso', 'Peso bruto (kg)', decimal(d.logistica.pesoBruto), ' inputmode="decimal"') +
+        (factura ? '' : campo('d-bultos', 'Bultos', decimal(d.logistica.bultos), ' inputmode="decimal"') + campo('d-peso', 'Peso bruto (kg)', decimal(d.logistica.pesoBruto), ' inputmode="decimal"') +
         campo('d-pesoneto', 'Peso neto (kg)', decimal(d.logistica.pesoNeto), ' inputmode="decimal"') + campo('d-volumen', 'Volumen (m³)', decimal(d.logistica.volumen), ' inputmode="decimal"') +
-        (S.escribir ? '<div class="campo" style="align-self:end"><button type="button" class="btn" id="d-calc-log">Calcular de los productos</button></div>' : '') +
+        (S.escribir ? '<div class="campo" style="align-self:end"><button type="button" class="btn" id="d-calc-log">Calcular de los productos</button></div>' : '')) +
         '<div class="campo ancho"><label for="d-notas">Notas</label><textarea id="d-notas" maxlength="2000"' + ro + '>' + esc(d.notas || '') + '</textarea></div>' +
         '<div class="campo ancho"><label for="d-cond">Condiciones (una por línea)</label><textarea id="d-cond" maxlength="3000"' + ro + '>' + esc((d.condiciones || []).join('\n')) + '</textarea></div>' +
       '</div><div class="g-totales" id="d-totales"></div></div>' +
-      '<div class="pie-hoja">' + (!nuevo && S.escribir ? '<button type="button" class="btn peligro" id="borrar">Eliminar</button>' : '') +
+      // Invoices are never deleted (the numbering must stay correlative): a wrong one is marked «Anulada».
+      '<div class="pie-hoja">' + (!nuevo && S.escribir && !factura ? '<button type="button" class="btn peligro" id="borrar">Eliminar</button>' : '') +
         '<div class="der"><button type="button" class="btn" id="cancelar">Cerrar</button><button type="button" class="btn" id="d-imprimir">Imprimir o PDF</button>' + conversion +
         (S.escribir ? '<button type="submit" class="btn primario" id="guardar">Guardar</button>' : '') + '</div></div>' +
       '</form></div>';
@@ -887,7 +911,7 @@ export function crearGestion(x) {
       pintarTotales();
     }
     function pintarTotales() {
-      const c = calcular(Object.assign({}, d, { pagado: tipo === 'pedido' ? num(v('d-pagado')) : 0 }));
+      const c = calcular(Object.assign({}, d, { pagado: tipo === 'pedido' || factura ? num(v('d-pagado')) : 0 }));
       c.lineas.forEach((l, i) => { const el = form.querySelector('[data-imp="' + i + '"]'); if (el) el.textContent = l.precio ? euros(l.importe) : 'Incluido'; });
       $('d-totales').innerHTML = '<div><span>Bruto</span><b>' + euros(c.bruto) + '</b></div>' + (c.descuento ? '<div><span>Descuentos</span><b>−' + euros(c.descuento) + '</b></div>' : '') +
         c.tramos.map((t) => '<div><span>Base ' + t.tipo + ' %</span><b>' + euros(t.base) + '</b></div><div><span>IVA ' + t.tipo + ' %</span><b>' + euros(t.cuota) + '</b></div>').join('') +
@@ -1010,7 +1034,7 @@ export function crearGestion(x) {
       if (!c) return;
       d.clienteId = c.id;
       [['d-cli-nif', c.nif], ['d-cli-tel', c.telefono], ['d-cli-correo', c.correo], ['d-cli-dir', c.direccion], ['d-cli-loc', c.localidad], ['d-cli-pais', c.pais], ['d-cli-att', c.att]].forEach(([id, val]) => { $(id).value = val || ''; });
-      if (c.envioDireccion) {
+      if (c.envioDireccion && !factura) {
         $('d-otro-envio').checked = true; $('d-envio').hidden = false;
         [['d-env-nombre', c.envioNombre], ['d-env-dir', c.envioDireccion], ['d-env-loc', c.envioLocalidad], ['d-env-pais', c.envioPais], ['d-env-contacto', c.envioContacto]].forEach(([id, val]) => { $(id).value = val || ''; });
       }
@@ -1042,7 +1066,7 @@ export function crearGestion(x) {
       const r = Object.assign({}, d, {
         numero: v('d-numero'), fecha: v('d-fecha'), estado: v('d-estado'), comercial: v('d-comercial'), suReferencia: v('d-suref'),
         cliente: { nombre: v('d-cli-nombre'), nif: v('d-cli-nif'), telefono: v('d-cli-tel'), correo: v('d-cli-correo'), direccion: v('d-cli-dir'), localidad: v('d-cli-loc'), pais: v('d-cli-pais'), att: v('d-cli-att') },
-        envio: $('d-otro-envio').checked || tipo === 'albaran'
+        envio: !factura && ($('d-otro-envio').checked || tipo === 'albaran')
           ? { nombre: v('d-env-nombre'), direccion: v('d-env-dir'), localidad: v('d-env-loc'), pais: v('d-env-pais'), contacto: v('d-env-contacto'), transportista: v('d-env-trans'), seguimiento: v('d-env-seg') } : {},
         formaPago: v('d-forma'), notas: $('d-notas').value.trim(), condiciones: lineasDe($('d-cond').value),
         logistica: { bultos: num(v('d-bultos')) || '', pesoBruto: num(v('d-peso')) || '', pesoNeto: num(v('d-pesoneto')) || '', volumen: num(v('d-volumen')) || '' },
@@ -1051,6 +1075,7 @@ export function crearGestion(x) {
       });
       if (tipo === 'presupuesto') r.validoHasta = v('d-valido');
       if (tipo === 'pedido') { r.entregaPrevista = v('d-entrega'); r.pagado = num(v('d-pagado')); }
+      if (factura) { r.modalidad = v('d-modalidad') || 'simplificada'; r.fechaOperacion = v('d-operacion'); r.pagado = num(v('d-pagado')); r.logistica = {}; }
       if (tipo === 'albaran') { r.fechaEntrega = v('d-entregado'); r.valorado = $('d-valorado').checked; }
       // En el albarán, si no hay otra dirección, se entrega en la del cliente.
       if (tipo === 'albaran' && !r.envio.direccion) r.envio = Object.assign({}, r.envio, { direccion: r.cliente.direccion, localidad: r.cliente.localidad, pais: r.cliente.pais });
@@ -1060,7 +1085,7 @@ export function crearGestion(x) {
     async function guardarCliente(r) {
       if (compra || !$('d-cli-guardar').checked || !r.cliente.nombre) return;
       const datos = Object.assign({}, r.cliente);
-      if ($('d-otro-envio').checked) Object.assign(datos, { envioNombre: r.envio.nombre, envioDireccion: r.envio.direccion, envioLocalidad: r.envio.localidad, envioPais: r.envio.pais, envioContacto: r.envio.contacto });
+      if (!factura && $('d-otro-envio').checked) Object.assign(datos, { envioNombre: r.envio.nombre, envioDireccion: r.envio.direccion, envioLocalidad: r.envio.localidad, envioPais: r.envio.pais, envioContacto: r.envio.contacto });
       const existe = S.clientes.find((c) => c.id === r.clienteId) || S.clientes.find((c) => sinTildes(c.nombre) === sinTildes(r.cliente.nombre));
       if (existe) { r.clienteId = existe.id; r.cliente.codigo = existe.codigo; await col('clientes').doc(existe.id).update(Object.assign(datos, { actualizado: new Date().toISOString() })); return; }
       const id = nuevoId(); const codigo = siguienteCodigoCliente();
@@ -1070,20 +1095,31 @@ export function crearGestion(x) {
     async function guardar() {
       const r = leer();
       if (!r.numero) { aviso('Falta el número.'); $('d-numero').focus(); return null; }
-      if (!r.cliente.nombre) { aviso(compra ? 'Falta el proveedor.' : 'Falta el cliente.'); $('d-cli-nombre').focus(); return null; }
+      const simplificada = factura && r.modalidad === 'simplificada';
+      // A simplified invoice may go without the customer's name; everything else needs it.
+      if (!r.cliente.nombre && !simplificada) { aviso(compra ? 'Falta el proveedor.' : 'Falta el cliente.'); $('d-cli-nombre').focus(); return null; }
+      if (factura) {
+        if (!r.lineas.length) { aviso('La factura no tiene líneas.'); return null; }
+        if (simplificada && calcular(r).total > MAX_SIMPLIFICADA) { aviso('Una factura simplificada no puede pasar de 3.000 € con IVA: cámbiala a «Completa».'); $('d-modalidad').focus(); return null; }
+        if (!simplificada) {
+          if (!ajustesEmpresa().domicilio) { aviso('Para una factura completa falta tu domicilio fiscal: ponlo en Gestión → Datos de la empresa.'); return null; }
+          if (!r.cliente.nif) { aviso('La factura completa necesita el NIF o DNI del cliente.'); $('d-cli-nif').focus(); return null; }
+        }
+      }
       const repetido = S.documentos.find((o) => o.id !== r.id && o.tipo === tipo && o.numero === r.numero);
-      if (repetido) { aviso('Ya hay un ' + titulo.toLowerCase() + ' con el número ' + r.numero + '.'); return null; }
+      if (repetido) { aviso('Ya hay ' + (factura ? 'una ' : 'un ') + titulo.toLowerCase() + ' con el número ' + r.numero + '.'); return null; }
       const ok = await escribir(async () => {
         await guardarCliente(r);
         const ahora = new Date().toISOString();
         const cuerpo = Object.assign({}, r, { actualizado: ahora, total: calcular(r).total }); delete cuerpo.id;
         if (r.id) await col('documentos').doc(r.id).set(cuerpo);
         else { r.id = nuevoId(); await col('documentos').doc(r.id).set(Object.assign(cuerpo, { creado: ahora, creadoPor: S.yo })); }
-        if (r.origenId && nuevo) {
+        // Accepting a quote or serving an order moves the source forward; invoicing leaves it as it was.
+        if (r.origenId && nuevo && !factura) {
           const origen = S.documentos.find((o) => o.id === r.origenId);
           if (origen) await col('documentos').doc(origen.id).update({ estado: origen.tipo === 'presupuesto' ? 'aceptado' : 'servido' });
         }
-      }, titulo + ' guardado', (nuevo ? 'hizo el ' : 'editó el ') + titulo.toLowerCase() + ' ' + r.numero + (compra ? ' a ' : ' para ') + r.cliente.nombre);
+      }, tituloDe(r) + guardadoTxt, (nuevo ? 'hizo ' : 'editó ') + el + tituloDe(r).toLowerCase() + ' ' + r.numero + (compra ? ' a ' : ' para ') + (r.cliente.nombre || 'un cliente'));
       if (!ok) return null;
       Object.assign(d, r); cambiado.valor = false;
       return r;
@@ -1100,24 +1136,38 @@ export function crearGestion(x) {
       if (r) cerrar(); else if ($('guardar')) { $('guardar').disabled = false; $('guardar').textContent = 'Guardar'; }
     });
     $('d-imprimir').onclick = () => imprimir(leer());
-    if ($('d-convertir')) $('d-convertir').onclick = async () => {
+    form.querySelectorAll('[data-convertir]').forEach((b) => { b.onclick = async () => {
       const r = cambiado.valor ? await guardar() : leer();
       if (!r) return;
-      const a = $('d-convertir').dataset.a;
-      const nuevoDoc = nuevoDocumento(a, {
-        cliente: r.cliente, clienteId: r.clienteId, envio: r.envio, lineas: r.lineas, suReferencia: r.suReferencia, referencia: r.numero, origenId: r.id,
-        formaPago: r.formaPago, logistica: r.logistica, pagado: r.pagado || 0, comercial: r.comercial
-      });
+      const a = b.dataset.convertir;
+      const nuevoDoc = nuevoDocumento(a, Object.assign({
+        cliente: r.cliente, clienteId: r.clienteId, lineas: r.lineas, suReferencia: r.suReferencia, referencia: r.numero, origenId: r.id,
+        formaPago: r.formaPago, pagado: r.pagado || 0, comercial: r.comercial
+      }, a === 'factura' ? {} : { envio: r.envio, logistica: r.logistica }));
       editorDocumento(null, nuevoDoc);
-      aviso('Revisa el ' + TIPOS[a].titulo.toLowerCase() + ' y pulsa Guardar.');
-    };
+      aviso(a === 'factura' ? 'Revisa la factura (simplificada o completa) y pulsa Guardar.' : 'Revisa el ' + TIPOS[a].titulo.toLowerCase() + ' y pulsa Guardar.');
+    }; });
+    // Invoice type: the number follows the series (F- full, FS- simplified) while the invoice is new; the help line says what each needs.
+    if ($('d-modalidad')) {
+      const ayudaFactura = () => {
+        const simp = $('d-modalidad').value === 'simplificada';
+        $('d-fac-ayuda').textContent = simp
+          ? 'Factura simplificada: lleva tu nombre y NIF, sin domicilio. El cliente es opcional. Máximo 3.000 € con IVA.'
+          : 'Factura completa: lleva tu domicilio fiscal y el nombre, NIF y dirección del cliente. Obligatoria si el cliente es una empresa o la pide.';
+      };
+      $('d-modalidad').addEventListener('change', () => {
+        if (nuevo) $('d-numero').value = siguienteNumero('factura', v('d-fecha'), false, $('d-modalidad').value);
+        ayudaFactura();
+      });
+      ayudaFactura();
+    }
     if ($('borrar')) {
       let armado = false, t;
       $('borrar').onclick = async () => {
         const b = $('borrar');
         if (!armado) { armado = true; b.classList.add('armado'); b.textContent = 'Pulsa otra vez para eliminar'; t = setTimeout(() => { armado = false; b.classList.remove('armado'); b.textContent = 'Eliminar'; }, 4000); return; }
         clearTimeout(t);
-        if (await escribir(() => col('documentos').doc(d.id).delete(), titulo + ' eliminado', 'borró el ' + titulo.toLowerCase() + ' ' + d.numero)) cerrar();
+        if (await escribir(() => col('documentos').doc(d.id).delete(), titulo + eliminadoTxt, 'borró ' + el + titulo.toLowerCase() + ' ' + d.numero)) cerrar();
       };
     }
     if (nuevo && $('d-cli-nombre') && !d.cliente.nombre) $('d-cli-nombre').focus();
@@ -1149,7 +1199,8 @@ export function crearGestion(x) {
       presupuesto: () => editorDocumento(null, nuevoDocumento('presupuesto')),
       pedido: () => editorDocumento(null, nuevoDocumento('pedido')),
       pedidoCompra: () => editorDocumento(null, nuevoDocumento('pedido', null, 'compra')),
-      albaran: () => editorDocumento(null, nuevoDocumento('albaran'))
+      albaran: () => editorDocumento(null, nuevoDocumento('albaran')),
+      factura: () => editorDocumento(null, nuevoDocumento('factura'))
     }
   };
 }

@@ -1,4 +1,4 @@
-// Plantilla de los documentos de gestión: presupuesto, pedido y albarán.
+// Plantilla de los documentos de gestión: presupuesto, pedido, albarán y factura (completa o simplificada).
 // documentoHTML(doc) devuelve el documento listo para imprimir o guardar en PDF desde el navegador.
 // Al imprimir, la cabecera, el pie y la fila de títulos de la tabla se repiten en cada hoja, con «Página X de Y».
 
@@ -18,12 +18,16 @@ export const EMPRESA = {
 export const TIPOS = {
   presupuesto: { titulo: 'Presupuesto', prefijo: 'P' },
   pedido: { titulo: 'Pedido', prefijo: 'PED' },
-  albaran: { titulo: 'Albarán', prefijo: 'ALB' }
+  albaran: { titulo: 'Albarán', prefijo: 'ALB' },
+  factura: { titulo: 'Factura', prefijo: 'F' }
 };
 // A pedido is a sale (to a customer) unless sentido is 'compra' (to a supplier, numbered PC-).
 export const PREFIJO_COMPRA = 'PC';
+// Invoices: «completa» (F-, carries our address and the customer's tax details) or «simplificada» (FS-, name and NIF are enough, up to 3.000 €).
+export const PREFIJO_SIMPLIFICADA = 'FS';
 export const esCompra = (d) => !!d && d.tipo === 'pedido' && d.sentido === 'compra';
-export const tituloDe = (d) => (esCompra(d) ? 'Pedido de compra' : (TIPOS[d.tipo] || TIPOS.presupuesto).titulo);
+export const esSimplificada = (d) => !!d && d.tipo === 'factura' && d.modalidad === 'simplificada';
+export const tituloDe = (d) => (esCompra(d) ? 'Pedido de compra' : esSimplificada(d) ? 'Factura simplificada' : (TIPOS[d.tipo] || TIPOS.presupuesto).titulo);
 
 const euros = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', useGrouping: 'always' });
 const fechaCorta = new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -66,6 +70,9 @@ function direccion(p) {
 
 export function documentoHTML(doc, empresa = EMPRESA) {
   const compra = esCompra(doc);
+  const factura = doc.tipo === 'factura';
+  // Our address only goes on full invoices; every other document carries name, NIF and contact.
+  const completa = factura && !esSimplificada(doc);
   const tipo = { titulo: tituloDe(doc) };
   const c = calcular(doc);
   const cli = doc.cliente || {};
@@ -79,27 +86,28 @@ export function documentoHTML(doc, empresa = EMPRESA) {
   // Cabecera que se repite en cada hoja.
   const cabecera = '<div class="cab">' +
     '<img class="logo" src="' + esc(doc.logo || 'logo-documento.svg') + '" alt="' + esc(empresa.marca) + '">' +
-    '<address>' + '<b>' + dato(empresa.razonSocial) + '</b><br>NIF ' + dato(empresa.nif) + '<br>' + dato(empresa.domicilio) + '<br>' + dato(empresa.localidad) +
+    '<address>' + '<b>' + dato(empresa.razonSocial) + '</b><br>NIF ' + dato(empresa.nif) + (completa ? '<br>' + dato(empresa.domicilio) + '<br>' + dato(empresa.localidad) : '') +
     '<br>' + esc(empresa.telefono) + ' · ' + esc(empresa.correo) + '<br>' + esc(empresa.web) + '</address></div>' +
     '<div class="tira"><span class="tipo">' + esc(tipo.titulo) + '</span><span class="num">' + dato(doc.numero) + '</span>' +
     '<span>' + esc(verFecha(doc.fecha)) + '</span><span class="cli">' + dato(cli.nombre || cli.empresa || '') + '</span></div>';
 
   // Pie que se repite en cada hoja.
-  const pie = '<div class="pie">' + dato(empresa.razonSocial) + ' · NIF ' + dato(empresa.nif) + ' · ' + dato(empresa.domicilio) + ', ' + dato(empresa.localidad) +
+  const pie = '<div class="pie">' + dato(empresa.razonSocial) + ' · NIF ' + dato(empresa.nif) + (completa ? ' · ' + dato(empresa.domicilio) + ', ' + dato(empresa.localidad) : '') +
     (empresa.registro ? '<br>' + dato(empresa.registro) : '') +
     '<br><span class="rgpd">' + esc(empresa.marca) + ' trata sus datos personales para gestionar la relación comercial, conforme al RGPD y la Ley Orgánica 3/2018. ' +
     'Puede ejercer sus derechos de acceso, rectificación, supresión, oposición, limitación y portabilidad escribiendo a ' + esc(empresa.correo) + '.</span></div>';
 
   // Datos del documento, cliente y envío (solo en la primera hoja).
-  const datosDoc = '<dl>' + fila('Número', doc.numero) + fila('Fecha', verFecha(doc.fecha)) +
+  const datosDoc = '<dl>' + fila('Número', doc.numero) + fila(factura ? 'Fecha de expedición' : 'Fecha', verFecha(doc.fecha)) +
+    (factura && doc.fechaOperacion && doc.fechaOperacion !== doc.fecha ? fila('Fecha de la operación', verFecha(doc.fechaOperacion)) : '') +
     (doc.tipo === 'presupuesto' ? fila('Válido hasta', verFecha(doc.validoHasta)) : '') +
     (doc.tipo === 'pedido' ? fila('Entrega prevista', verFecha(doc.entregaPrevista)) : '') +
     (doc.tipo === 'albaran' ? fila('Fecha de entrega', verFecha(doc.fechaEntrega)) : '') +
-    fila('Su referencia', doc.suReferencia) + fila('Nuestra ref.', doc.referencia) + fila(compra ? 'Pedido por' : 'Atendido por', doc.comercial) + '</dl>';
+    fila('Su referencia', doc.suReferencia) + fila(factura ? 'Pedido o albarán' : 'Nuestra ref.', doc.referencia) + fila(compra ? 'Pedido por' : 'Atendido por', doc.comercial) + '</dl>';
   const envioDistinto = env.direccion && env.direccion !== cli.direccion;
   // In a purchase order the goods come to us unless another address is given.
   const nuestra = { nombre: empresa.razonSocial, direccion: empresa.domicilio, localidad: empresa.localidad, telefono: empresa.telefono };
-  const envioCuerpo = compra ? direccion(env.direccion ? env : nuestra) : (envioDistinto || doc.tipo !== 'presupuesto') ? direccion(env.direccion ? env : cli) +
+  const envioCuerpo = factura ? '' : compra ? direccion(env.direccion ? env : nuestra) : (envioDistinto || doc.tipo !== 'presupuesto') ? direccion(env.direccion ? env : cli) +
     (doc.tipo === 'albaran' ? '<dl>' + fila('Transporte', env.transportista) + fila('Seguimiento', env.seguimiento) + '</dl>' : '') : '';
   const partes = '<div class="partes">' +
     caja('caja-doc', tipo.titulo, datosDoc) +
@@ -128,10 +136,10 @@ export function documentoHTML(doc, empresa = EMPRESA) {
     '<div><span>Bruto</span><b>' + euros.format(c.bruto) + '</b></div>' +
     (c.descuento ? '<div><span>Descuentos</span><b>−' + euros.format(c.descuento) + '</b></div>' : '') +
     c.tramos.map((t) => '<div><span>Base imponible' + (c.tramos.length > 1 ? ' ' + t.tipo + ' %' : '') + '</span><b>' + euros.format(t.base) + '</b></div><div><span>IVA ' + cifra.format(t.tipo) + ' %</span><b>' + euros.format(t.cuota) + '</b></div>').join('') +
-    '<div class="total"><span>Total' + (doc.tipo === 'pedido' ? ' pedido' : '') + '</span><b>' + euros.format(c.total) + '</b></div>' +
-    (c.pagado ? '<div><span>Pagado</span><b>' + euros.format(c.pagado) + '</b></div><div class="pendiente"><span>Pendiente</span><b>' + euros.format(c.pendiente) + '</b></div>' : '') +
+    '<div class="total"><span>Total' + (doc.tipo === 'pedido' ? ' pedido' : esSimplificada(doc) ? ' (IVA incluido)' : factura ? ' factura' : '') + '</span><b>' + euros.format(c.total) + '</b></div>' +
+    (c.pagado ? '<div><span>' + (factura ? 'Cobrado' : 'Pagado') + '</span><b>' + euros.format(c.pagado) + '</b></div><div class="pendiente"><span>Pendiente</span><b>' + euros.format(c.pendiente) + '</b></div>' : '') +
     '</div>' : '';
-  const logistica = [['Bultos', log.bultos], ['Peso bruto', log.pesoBruto && cifra.format(log.pesoBruto) + ' kg'], ['Peso neto', log.pesoNeto && cifra.format(log.pesoNeto) + ' kg'], ['Volumen', log.volumen && cifra.format(log.volumen) + ' m³']]
+  const logistica = factura ? '' : [['Bultos', log.bultos], ['Peso bruto', log.pesoBruto && cifra.format(log.pesoBruto) + ' kg'], ['Peso neto', log.pesoNeto && cifra.format(log.pesoNeto) + ' kg'], ['Volumen', log.volumen && cifra.format(log.volumen) + ' m³']]
     .filter(([, v]) => v).map(([k, v]) => '<div><dt>' + k + '</dt><dd>' + esc(v) + '</dd></div>').join('');
   const condiciones = [
     doc.tipo === 'presupuesto' && doc.validoHasta ? 'Validez de la oferta: ' + dias(doc.fecha, doc.validoHasta) + ' días, hasta el ' + verFecha(doc.validoHasta) + '.' : '',
@@ -144,7 +152,7 @@ export function documentoHTML(doc, empresa = EMPRESA) {
   const firmaNota = { presupuesto: 'Firma, nombre y fecha', pedido: 'Firma, nombre y fecha', albaran: 'Firma, nombre, DNI y fecha. Revise la mercancía antes de firmar.' }[doc.tipo];
   const cierre = '<div class="cierre">' +
     '<div class="izq">' + (logistica ? '<dl class="logistica">' + logistica + '</dl>' : '') + (notas ? '<div class="notas">' + notas + '</div>' : '') + '</div>' +
-    '<div class="der">' + totales + '<section class="firma"><p>' + firma + '</p><div class="hueco-firma"></div><p class="peq">' + firmaNota + '</p></section></div>' +
+    '<div class="der">' + totales + (factura ? '' : '<section class="firma"><p>' + firma + '</p><div class="hueco-firma"></div><p class="peq">' + firmaNota + '</p></section>') + '</div>' +
     '</div>';
 
   return '<article class="doc doc-' + esc(doc.tipo) + '"><table class="marco">' +
