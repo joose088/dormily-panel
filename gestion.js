@@ -135,7 +135,7 @@ export function crearGestion(x) {
     const subs = [['documentos', 'Documentos', S.documentos.length], ['productos', 'Productos', S.productos.length], ['escandallos', 'Escandallos', null], ['clientes', 'Clientes', S.clientes.length], ['empresa', 'Datos de la empresa', null]];
     const acciones = {
       documentos: '<button class="btn primario" type="button" data-nuevo="presupuesto">+ Presupuesto</button><button class="btn" type="button" data-nuevo="pedido">+ Pedido de venta</button><button class="btn" type="button" data-nuevo="pedidoCompra">+ Pedido de compra</button><button class="btn" type="button" data-nuevo="albaran">+ Albarán</button>',
-      productos: '<button class="btn primario" type="button" data-nuevo="producto">+ Producto</button>' + (S.escribir ? '<button class="btn" type="button" data-g-azorin="1">Cargar la tarifa de Azorín</button>' : ''),
+      productos: '<button class="btn primario" type="button" data-nuevo="producto">+ Producto</button>' + (S.escribir ? '<button class="btn" type="button" data-g-azorin="1">Cargar o actualizar la tarifa de Azorín</button>' : ''),
       escandallos: '',
       clientes: '<button class="btn primario" type="button" data-nuevo="cliente">+ Cliente</button>',
       empresa: ''
@@ -637,19 +637,47 @@ export function crearGestion(x) {
   }
 
   /* ---------- Cargar la tarifa de Azorín ---------- */
-  // Creates the products of the Azorín 26/27 tariff that are not in the catalogue yet (same reference = already there).
+  // Creates the products of the Azorín 26/27 tariff that are not in the catalogue yet (same reference = already there)
+  // and brings the ones already loaded up to date: every size of the tariff with its cost and PVP mínimo.
+  // Sizes already used keep their id, so documents still find them; manual price, weight and volume are kept.
+  const claveMedida = (v) => sinTildes(String(v.medida || '').replace(/\s/g, '').replace(/x/gi, '×')) + '|' + sinTildes(v.version || '');
+  function medidasDeTarifa(p, t) {
+    const viejas = variantesDe(p), usadas = new Set();
+    const enDocs = new Set(S.documentos.flatMap((d) => (d.lineas || []).filter((l) => l.productoId === p.id && l.varianteId).map((l) => l.varianteId)));
+    const vs = (t.variantes || []).map((v) => {
+      // Same size and version; a size saved without version (older load) is taken by the first version of that size.
+      let o = viejas.find((x) => !usadas.has(x.id) && claveMedida(x) === claveMedida(v));
+      if (!o) o = viejas.find((x) => !usadas.has(x.id) && !x.version && claveMedida(x) === claveMedida({ medida: v.medida }));
+      if (o) usadas.add(o.id);
+      return Object.assign({ id: (o && o.id) || nuevoId(), ref: (o && o.ref) || '', precio: (o && Number(o.precio)) || 0, peso: (o && Number(o.peso)) || 0, volumen: (o && Number(o.volumen)) || 0 }, v);
+    });
+    // Sizes added by hand or used in a document stay.
+    const quedan = viejas.filter((x) => !usadas.has(x.id) && (enDocs.has(x.id) || Number(x.precio) || Number(x.peso) || Number(x.volumen) || x.ref));
+    return vs.concat(quedan).sort((x, y) => motorUltimo(x) - motorUltimo(y));
+  }
+  const firmaMedidas = (vs) => vs.map((v) => claveMedida(v) + '=' + Number(v.coste || 0) + '/' + Number(v.pvpMin || 0)).sort().join(';');
   let cargandoAzorin = false;
   async function cargarAzorin() {
     if (!S.escribir) return;
     // Without the product list loaded every product would look missing and be created twice; same if the button is pressed again mid-load.
     if (!S.listo.productos) { aviso('Espera a que terminen de cargar los productos y vuelve a pulsar.'); return; }
     if (cargandoAzorin) { aviso('Ya se está cargando la tarifa.'); return; }
-    const faltan = TARIFA_AZORIN.filter((t) => !S.productos.some((p) => sinTildes(p.ref) === sinTildes(t.ref)));
-    if (!faltan.length) { aviso('Ya están todos los productos de la tarifa de Azorín.'); return; }
+    const mismaRef = (t) => S.productos.filter((p) => sinTildes(p.ref) === sinTildes(t.ref));
+    const faltan = TARIFA_AZORIN.filter((t) => !mismaRef(t).length);
+    const cambios = [];
+    for (const t of TARIFA_AZORIN) for (const p of mismaRef(t)) {
+      if (!(t.variantes || []).length) continue;
+      const vs = medidasDeTarifa(p, t);
+      if (firmaMedidas(vs) !== firmaMedidas(variantesDe(p))) cambios.push({ p, t, vs });
+    }
+    if (!faltan.length && !cambios.length) { aviso('La tarifa de Azorín ya está entera y al día.'); return; }
     const porCat = CATEGORIAS.map((c) => [c, faltan.filter((t) => t.categoria === c).length]).filter(([, n]) => n).map(([c, n]) => n + ' ' + c.toLowerCase()).join(', ');
-    if (!confirm('Se van a crear ' + faltan.length + ' productos de la tarifa de Azorín 26/27 (' + porCat + '), con su coste con IVA, su PVP mínimo y sus acabados. ' +
-      'Los que ya tengáis con la misma referencia no se tocan. El precio de venta lo pondrá el escandallo de cada categoría. ¿Seguir?')) return;
+    const nuevasMedidas = cambios.reduce((s, c) => s + Math.max(0, c.vs.length - variantesDe(c.p).length), 0);
+    if (!confirm((faltan.length ? 'Se van a crear ' + faltan.length + ' productos de la tarifa de Azorín 26/27 (' + porCat + '), con su coste con IVA, su PVP mínimo y sus acabados.\n' : '') +
+      (cambios.length ? 'Se van a poner al día las medidas de ' + cambios.length + ' productos ya cargados' + (nuevasMedidas ? ' (' + nuevasMedidas + ' medidas nuevas)' : '') + ', con su coste y su PVP mínimo. Los precios puestos a mano, pesos y volúmenes se mantienen, y los documentos ya hechos no cambian.\n' : '') +
+      'El precio de venta lo pondrá el escandallo de cada categoría. ¿Seguir?')) return;
     const ahora = new Date().toISOString();
+    const resumen = [faltan.length && faltan.length + ' productos nuevos', cambios.length && cambios.length + ' productos puestos al día'].filter(Boolean).join(' y ');
     cargandoAzorin = true;
     try { await escribir(async () => {
       for (let i = 0; i < faltan.length; i += 20) {
@@ -661,7 +689,11 @@ export function crearGestion(x) {
           return col('productos').doc(nuevoId()).set(prod);
         }));
       }
-    }, faltan.length + ' productos de Azorín cargados', 'cargó ' + faltan.length + ' productos de la tarifa de Azorín'); } finally { cargandoAzorin = false; }
+      for (let i = 0; i < cambios.length; i += 20) {
+        await Promise.all(cambios.slice(i, i + 20).map(({ p, t, vs }) => col('productos').doc(p.id).update({
+          variantes: vs, medidas: [...new Set(vs.map((v) => v.medida))].join(', ').slice(0, 300), refProveedor: t.refProveedor || p.refProveedor || '', actualizado: ahora })));
+      }
+    }, 'Tarifa de Azorín: ' + resumen, 'cargó la tarifa de Azorín: ' + resumen); } finally { cargandoAzorin = false; }
   }
 
   /* ---------- Cliente ---------- */
