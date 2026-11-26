@@ -428,8 +428,10 @@ export function crearGestion(x) {
       },
       alGuardar(d) {
         delete d.sepU; delete d.sepC;
+        // Only a new or changed reference is checked: a product already repeated (e.g. the tariff loaded twice) must still be editable.
+        const refCambiada = nuevo || sinTildes(d.ref) !== sinTildes(p.ref);
         const repetida = S.productos.find((o) => o.id !== p.id && sinTildes(o.ref) === sinTildes(d.ref));
-        if (repetida) { aviso('La referencia ' + d.ref + ' ya es de «' + repetida.nombre + '».'); return false; }
+        if (repetida && refCambiada) { aviso('La referencia ' + d.ref + ' ya es de «' + repetida.nombre + '».'); return false; }
         const vs = variantes.filter((v) => v.medida || v.version || v.precio || v.coste)
           .map((v) => ({ id: v.id || nuevoId(), medida: String(v.medida || '').trim(), version: String(v.version || '').trim(), ref: String(v.ref || '').trim(),
             coste: Number(v.coste) || 0, pvpMin: Number(v.pvpMin) || 0, precio: Number(v.precio) || 0, peso: Number(v.peso) || 0, volumen: Number(v.volumen) || 0 }));
