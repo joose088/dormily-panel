@@ -116,6 +116,19 @@ export function crearGestion(x) {
     throw new Error('La foto es demasiado grande incluso reducida.');
   }
 
+  // Photo straight from a product card: pick it, it is shrunk and saved on the product (and so shows in every document).
+  document.addEventListener('change', async (e) => {
+    const inp = e.target.closest && e.target.closest('[data-g-foto-in]');
+    if (!inp || !S.escribir) return;
+    const f = inp.files && inp.files[0], p = producto(inp.dataset.gFotoIn);
+    inp.value = '';
+    if (!f || !p) return;
+    try {
+      const foto = await fotoReducida(f);
+      await escribir(() => col('productos').doc(p.id).update({ foto, actualizado: new Date().toISOString() }), 'Foto guardada: ya sale en los documentos', 'puso foto al producto «' + p.nombre + '»');
+    } catch (err) { aviso(err.message); }
+  });
+
   /* ---------- Vista ---------- */
   function renderGestion() {
     const G = S.gestion;
@@ -173,7 +186,10 @@ export function crearGestion(x) {
       const iva = Number(p.iva ?? 21), vs = variantesDe(p), gs = gruposDe(p), pr = desde(p);
       const medidas = [...new Set(vs.map((v) => v.medida).filter(Boolean))];
       return '<article class="card g-prod' + (p.activo === false ? ' g-inactivo' : '') + '">' +
-        '<div class="g-foto">' + (p.foto ? '<img src="' + esc(p.foto) + '" alt="">' : '<span>Sin foto</span>') + '</div>' +
+        (S.escribir
+          ? '<label class="g-foto g-foto-sub" title="' + (p.foto ? 'Cambiar la foto' : 'Subir una foto') + '">' + (p.foto ? '<img src="' + esc(p.foto) + '" alt=""><span class="g-foto-cambiar">Cambiar</span>' : '<span>+ Subir foto</span>') +
+            '<input type="file" accept="image/*" data-g-foto-in="' + esc(p.id) + '" hidden></label>'
+          : '<div class="g-foto">' + (p.foto ? '<img src="' + esc(p.foto) + '" alt="">' : '<span>Sin foto</span>') + '</div>') +
         '<div class="g-prod-txt"><h3>' + esc(p.nombre) + '</h3><div class="linea"><span>' + esc(p.ref) + '</span>' + (p.categoria ? '<span class="pill">' + esc(p.categoria) + '</span>' : '') + (p.activo === false ? '<span class="pill bad">De baja</span>' : '') + '</div>' +
         (vs.length ? '<div class="linea">' + esc(medidas.slice(0, 6).join(', ') + (medidas.length > 6 ? '… (' + medidas.length + ' medidas)' : '')) + '</div>' : p.medidas ? '<div class="linea">' + esc(p.medidas) + '</div>' : '') +
         (gs.length ? '<div class="linea">' + esc(gs.map((g) => g.nombre).join(' · ')) + '</div>' : '') +
@@ -235,7 +251,7 @@ export function crearGestion(x) {
       { n: 'activo', l: 'Se sigue vendiendo (si no, no sale al buscar)', t: 'check' }
     ];
     const tipicas = MEDIDAS_TIPICAS[p.categoria] || ['', ''];
-    const extra = '<div class="campo ancho"><span class="lbl">Foto</span><div class="g-foto-edit"><div class="g-foto" id="p-foto">' + (foto ? '<img src="' + esc(foto) + '" alt="">' : '<span>Sin foto</span>') + '</div>' +
+    const extra = '<div class="campo ancho" id="p-foto-campo"><span class="lbl">Foto (sale en presupuestos, pedidos y albaranes)</span><div class="g-foto-edit"><div class="g-foto" id="p-foto">' + (foto ? '<img src="' + esc(foto) + '" alt="">' : '<span>Sin foto</span>') + '</div>' +
       (S.escribir ? '<div class="g-foto-btns"><label class="btn" for="p-foto-in">Elegir foto</label><input type="file" id="p-foto-in" accept="image/*" hidden><button type="button" class="btn" id="p-foto-quitar"' + (foto ? '' : ' hidden') + '>Quitar</button></div>' : '') + '</div></div>' +
       '<div class="campo ancho" id="p-pvp" style="font-size:13px;color:var(--muted)"></div>' +
       '<div class="separador">Medidas y precios</div>' +
@@ -255,6 +271,9 @@ export function crearGestion(x) {
       titulo: nuevo ? 'Nuevo producto' : p.nombre, campos, valores: Object.assign({}, p, { iva: String(p.iva ?? 21) }), extra,
       alMontar(form) {
         form.classList.add('hoja-prod');
+        // The photo goes first, where it is seen, instead of at the end of the long form.
+        const campoFoto = $('p-foto-campo'), primerCampo = form.querySelector('.campos > *');
+        if (campoFoto && primerCampo && primerCampo !== campoFoto) primerCampo.before(campoFoto);
         const iva = () => Number(form.elements.iva.value);
         const conIva = (n) => (n ? euros(Math.round(n * (1 + iva() / 100) * 100) / 100) : '');
         // The product as it stands in the form, to price it with the escandallo while typing.
@@ -1127,6 +1146,12 @@ export const ESTILOS_GESTION = `
   .g-prod-txt { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
   .g-foto { width: 96px; height: 96px; flex: none; border-radius: 12px; background: var(--sunk); display: grid; place-items: center; overflow: hidden; color: var(--muted); font-size: 12px; }
   .g-foto img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
+  .g-foto-sub { cursor: pointer; position: relative; border: 1px dashed transparent; }
+  .g-foto-sub:hover, .g-foto-sub:focus-within { border-color: var(--ink); }
+  .g-foto-sub > span:not(.g-foto-cambiar) { font-weight: 700; color: var(--ink); text-align: center; padding: 4px; }
+  .g-foto-cambiar { position: absolute; left: 0; right: 0; bottom: 0; font-size: 11px; font-weight: 700; text-align: center; background: rgba(0,0,0,.55); color: #fff; padding: 2px 0; opacity: 0; transition: opacity .15s; }
+  .g-foto-sub:hover .g-foto-cambiar, .g-foto-sub:focus-within .g-foto-cambiar { opacity: 1; }
+  @media (hover: none) { .g-foto-cambiar { opacity: 1; } }
   .g-foto-edit { display: flex; gap: 12px; align-items: center; }
   .g-foto-edit .g-foto { width: 120px; height: 120px; }
   .g-foto-btns { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
