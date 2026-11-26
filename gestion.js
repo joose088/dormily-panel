@@ -2,6 +2,7 @@
 // El documento se monta buscando productos del catálogo: al elegir uno se añade con su foto, características y precio.
 // Recibe del panel (index.html) su estado y sus utilidades; devuelve la vista y los formularios.
 import { documentoHTML, ESTILOS_DOCUMENTO, calcular, EMPRESA, TIPOS, PREFIJO_COMPRA, PREFIJO_SIMPLIFICADA, esCompra, esSimplificada, tituloDe } from './documento.js';
+import { crearVentas, ESTILOS_VENTAS } from './ventas.js';
 import { desglose, precioExtra, costeNeto, costeCompra, datosCalculo, escandalloDe, ESCANDALLO_BASE, TIPOS_COSTE, REDONDEOS } from './escandallo.js';
 
 export const CATEGORIAS = ['Colchones', 'Canapés', 'Bases y somieres', 'Cabezales', 'Almohadas', 'Textil', 'Accesorios', 'Servicios'];
@@ -56,6 +57,7 @@ const ordenVariantes = (a, b) => motorUltimo(a) - motorUltimo(b) || (a.version |
 export function crearGestion(x) {
   const { S, $, esc, escribir, col, aviso, cerrar, render, euros, num, nuevoId, hoyIso, sumaDias, textoFecha, cabecera, abrirHoja, PERSONAS } = x;
   S.gestion = Object.assign({ sub: 'documentos', tipo: 'todos', buscar: '', categoria: 'todas' }, S.gestion || {});
+  const panelVentas = crearVentas({ S, esc, euros, render });
 
   /* ---------- Datos de apoyo ---------- */
   const ajustesEmpresa = () => S.ajustes.find((a) => a.id === 'empresa') || {};
@@ -137,12 +139,13 @@ export function crearGestion(x) {
   /* ---------- Vista ---------- */
   function renderGestion() {
     const G = S.gestion;
-    const subs = [['documentos', 'Documentos', S.documentos.length], ['productos', 'Productos', S.productos.length], ['escandallos', 'Escandallos', null], ['clientes', 'Clientes', S.clientes.length], ['empresa', 'Datos de la empresa', null]];
+    const subs = [['documentos', 'Documentos', S.documentos.length], ['ventas', 'Ventas', null], ['productos', 'Productos', S.productos.length], ['escandallos', 'Escandallos', null], ['clientes', 'Clientes', S.clientes.length], ['empresa', 'Datos de la empresa', null]];
     const acciones = {
       documentos: '<button class="btn primario" type="button" data-nuevo="presupuesto">+ Presupuesto</button><button class="btn" type="button" data-nuevo="pedido">+ Pedido de venta</button><button class="btn" type="button" data-nuevo="pedidoCompra">+ Pedido de compra</button><button class="btn" type="button" data-nuevo="albaran">+ Albarán</button><button class="btn" type="button" data-nuevo="factura">+ Factura</button>',
       productos: '<button class="btn primario" type="button" data-nuevo="producto">+ Producto</button>' +
         (S.escribir && S.listo.productos && copiasSobrantes().sobran.length ? '<button class="btn" type="button" data-g-repetidos="1">Quitar repetidos (' + copiasSobrantes().sobran.length + ')</button>' : ''),
       escandallos: '',
+      ventas: '',
       clientes: '<button class="btn primario" type="button" data-nuevo="cliente">+ Cliente</button>',
       empresa: ''
     }[G.sub];
@@ -151,6 +154,7 @@ export function crearGestion(x) {
       '<a class="chip" href="guia-gestion.html" target="_blank" rel="noopener" style="margin-left:auto;text-decoration:none;color:inherit">Guía: qué poner en cada campo</a></div>';
     if (G.sub === 'productos') html += vistaProductos();
     else if (G.sub === 'escandallos') html += vistaEscandallos();
+    else if (G.sub === 'ventas') html += panelVentas.vista();
     else if (G.sub === 'clientes') html += vistaClientes();
     else if (G.sub === 'empresa') html += vistaEmpresa();
     else html += vistaDocumentos();
@@ -1224,6 +1228,7 @@ export function crearGestion(x) {
     if (b.dataset.gsub) { S.gestion.sub = b.dataset.gsub; S.gestion.buscar = ''; render(); return true; }
     if (b.dataset.gtipo) { S.gestion.tipo = b.dataset.gtipo; render(); return true; }
     if (b.dataset.gcat) { S.gestion.categoria = b.dataset.gcat; render(); return true; }
+    if (panelVentas.alClic(b)) return true;
     if (b.dataset.escCat) { formEscCategoria(b.dataset.escCat); return true; }
     if (b.dataset.escProd) { const p = producto(b.dataset.escProd); if (p) formEscProducto(p); return true; }
     if (b.dataset.gRepetidos) { quitarRepetidos(); return true; }
@@ -1372,4 +1377,4 @@ export const ESTILOS_GESTION = `
     .g-imp { grid-column: span 2; }
   }
   @media (max-width: 640px) { .g-tres { grid-template-columns: 1fr; } .g-buscar { margin-left: 0; width: 100%; } }
-`;
+` + ESTILOS_VENTAS;
