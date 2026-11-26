@@ -182,15 +182,22 @@ export function crearGestion(x) {
     let html = '<div class="filtros">' + cats.map((c) => '<button class="chip" type="button" data-gcat="' + esc(c) + '" aria-pressed="' + (G.categoria === c) + '">' + esc(c === 'todas' ? 'Todas' : c) + '</button>').join('') + buscador('Buscar producto') + '</div>';
     if (!S.productos.length) return html + '<div class="vacio">El catálogo está vacío. Da de alta cada producto con «+ Producto»: foto, referencia, características y precio. Luego, al hacer un documento, basta con buscarlo.</div>';
     if (!lista.length) return html + '<div class="vacio">Ningún producto con este filtro.</div>';
+    // Products entered twice (same reference or same name): flagged so one can be deleted.
+    const cuenta = (k) => S.productos.filter((o) => k(o)).length;
+    const repetido = (p) => cuenta((o) => p.ref && sinTildes(o.ref) === sinTildes(p.ref)) > 1 || cuenta((o) => sinTildes(o.nombre) === sinTildes(p.nombre)) > 1;
+    const usos = (p) => S.documentos.filter((d) => (d.lineas || []).some((l) => l.productoId === p.id)).length;
+    const nRep = lista.filter(repetido).length;
+    if (nRep) html += '<div class="est-aviso">Hay ' + nRep + ' productos repetidos (misma referencia o mismo nombre), marcados con «Repetido». Abre el que no esté en ningún documento y pulsa «Eliminar».</div>';
     return html + '<div class="rejilla-cards g-productos">' + lista.map((p) => {
       const iva = Number(p.iva ?? 21), vs = variantesDe(p), gs = gruposDe(p), pr = desde(p);
+      const rep = repetido(p), u = rep ? usos(p) : 0;
       const medidas = [...new Set(vs.map((v) => v.medida).filter(Boolean))];
       return '<article class="card g-prod' + (p.activo === false ? ' g-inactivo' : '') + '">' +
         (S.escribir
           ? '<label class="g-foto g-foto-sub" title="' + (p.foto ? 'Cambiar la foto' : 'Subir una foto') + '">' + (p.foto ? '<img src="' + esc(p.foto) + '" alt=""><span class="g-foto-cambiar">Cambiar</span>' : '<span>+ Subir foto</span>') +
             '<input type="file" accept="image/*" data-g-foto-in="' + esc(p.id) + '" hidden></label>'
           : '<div class="g-foto">' + (p.foto ? '<img src="' + esc(p.foto) + '" alt="">' : '<span>Sin foto</span>') + '</div>') +
-        '<div class="g-prod-txt"><h3>' + esc(p.nombre) + '</h3><div class="linea"><span>' + esc(p.ref) + '</span>' + (p.categoria ? '<span class="pill">' + esc(p.categoria) + '</span>' : '') + (p.activo === false ? '<span class="pill bad">De baja</span>' : '') + '</div>' +
+        '<div class="g-prod-txt"><h3>' + esc(p.nombre) + '</h3><div class="linea"><span>' + esc(p.ref) + '</span>' + (p.categoria ? '<span class="pill">' + esc(p.categoria) + '</span>' : '') + (p.activo === false ? '<span class="pill bad">De baja</span>' : '') + (rep ? '<span class="pill warn">Repetido · ' + (u ? 'en ' + u + (u === 1 ? ' documento' : ' documentos') : 'sin documentos') + '</span>' : '') + '</div>' +
         (vs.length ? '<div class="linea">' + esc(medidas.slice(0, 6).join(', ') + (medidas.length > 6 ? '… (' + medidas.length + ' medidas)' : '')) + '</div>' : p.medidas ? '<div class="linea">' + esc(p.medidas) + '</div>' : '') +
         (gs.length ? '<div class="linea">' + esc(gs.map((g) => g.nombre).join(' · ')) + '</div>' : '') +
         (pr ? '<div class="linea"><b style="color:var(--ink)">' + (vs.length > 1 ? 'Desde ' : '') + euros(pr) + '</b><span>+ IVA · ' + euros(Math.round(pr * (1 + iva / 100) * 100) / 100) + ' con IVA</span></div>' : '<div class="linea"><span class="pill warn">Sin precio ni coste</span></div>') +
@@ -631,15 +638,20 @@ export function crearGestion(x) {
 
   /* ---------- Cargar la tarifa de Azorín ---------- */
   // Creates the products of the Azorín 26/27 tariff that are not in the catalogue yet (same reference = already there).
+  let cargandoAzorin = false;
   async function cargarAzorin() {
     if (!S.escribir) return;
+    // Without the product list loaded every product would look missing and be created twice; same if the button is pressed again mid-load.
+    if (!S.listo.productos) { aviso('Espera a que terminen de cargar los productos y vuelve a pulsar.'); return; }
+    if (cargandoAzorin) { aviso('Ya se está cargando la tarifa.'); return; }
     const faltan = TARIFA_AZORIN.filter((t) => !S.productos.some((p) => sinTildes(p.ref) === sinTildes(t.ref)));
     if (!faltan.length) { aviso('Ya están todos los productos de la tarifa de Azorín.'); return; }
     const porCat = CATEGORIAS.map((c) => [c, faltan.filter((t) => t.categoria === c).length]).filter(([, n]) => n).map(([c, n]) => n + ' ' + c.toLowerCase()).join(', ');
     if (!confirm('Se van a crear ' + faltan.length + ' productos de la tarifa de Azorín 26/27 (' + porCat + '), con su coste con IVA, su PVP mínimo y sus acabados. ' +
       'Los que ya tengáis con la misma referencia no se tocan. El precio de venta lo pondrá el escandallo de cada categoría. ¿Seguir?')) return;
     const ahora = new Date().toISOString();
-    await escribir(async () => {
+    cargandoAzorin = true;
+    try { await escribir(async () => {
       for (let i = 0; i < faltan.length; i += 20) {
         await Promise.all(faltan.slice(i, i + 20).map((t) => {
           const vs = (t.variantes || []).map((v) => Object.assign({ id: nuevoId(), ref: '', precio: 0, peso: 0, volumen: 0 }, v)).sort((x, y) => motorUltimo(x) - motorUltimo(y));
@@ -649,7 +661,7 @@ export function crearGestion(x) {
           return col('productos').doc(nuevoId()).set(prod);
         }));
       }
-    }, faltan.length + ' productos de Azorín cargados', 'cargó ' + faltan.length + ' productos de la tarifa de Azorín');
+    }, faltan.length + ' productos de Azorín cargados', 'cargó ' + faltan.length + ' productos de la tarifa de Azorín'); } finally { cargandoAzorin = false; }
   }
 
   /* ---------- Cliente ---------- */
