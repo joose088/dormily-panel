@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Guía de Gestión</title>
-<meta name="description" content="Qué poner en cada campo de productos, clientes, datos de la empresa, presupuestos, pedidos y albaranes del panel de Landez.">
+<meta name="description" content="Qué poner en cada campo de productos, escandallos, clientes, datos de la empresa, presupuestos, pedidos y albaranes del panel de Landez.">
 <link rel="icon" href="icono.svg">
 <style>
   :root { --tinta: #111; --gris: #555; --linea: #CFCFCF; --fina: #E6E6E6; --fondo: #F4F4F4; --papel: #FFFFFF; --marca: #2F3BFF; --aviso: #FFF6D6; }
@@ -75,7 +75,7 @@
 
 <header class="portada">
   <h1>Guía de Gestión</h1>
-  <p>Qué poner en cada campo de productos, clientes, datos de la empresa, presupuestos, pedidos y albaranes del panel de Landez Descanso.</p>
+  <p>Qué poner en cada campo de productos, escandallos, clientes, datos de la empresa, presupuestos, pedidos y albaranes del panel de Landez Descanso.</p>
   <div class="acciones">
     <a href="guia-gestion.pdf" download>Descargar en PDF</a>
     <button type="button" onclick="window.print()">Imprimir</button>
@@ -89,6 +89,7 @@
     <li><a href="#orden">Por dónde empezar</a></li>
     <li><a href="#empresa">Datos de la empresa</a></li>
     <li><a href="#productos">Productos</a></li>
+    <li><a href="#escandallos">Escandallos: del coste al precio</a></li>
     <li><a href="#clientes">Clientes</a></li>
     <li><a href="#documento">Documento: cabecera</a></li>
     <li><a href="#cliente-doc">Documento: cliente y envío</a></li>
@@ -104,10 +105,11 @@
 
 <section class="bloque" id="orden">
   <h2>1. Por dónde empezar</h2>
-  <p>Todo está en el panel, pestaña <b>Gestión</b>. Arriba hay cuatro apartados: <b>Documentos</b>, <b>Productos</b>, <b>Clientes</b> y <b>Datos de la empresa</b>.</p>
+  <p>Todo está en el panel, pestaña <b>Gestión</b>. Arriba hay cinco apartados: <b>Documentos</b>, <b>Productos</b>, <b>Escandallos</b>, <b>Clientes</b> y <b>Datos de la empresa</b>.</p>
   <ol class="pasos">
     <li><b>Datos de la empresa</b>, una sola vez: razón social, NIF y domicilio, que si faltan salen como huecos resaltados en los documentos.</li>
-    <li><b>Productos</b>: dar de alta cada producto que vendéis, con su foto, características y precio. Es lo que luego se busca al hacer un documento.</li>
+    <li><b>Productos</b>: pulsad <b>Cargar la tarifa de Azorín</b> y se crean de golpe sus 64 productos (canapés, somieres y bases con todas sus medidas y versiones; colchones, cabezales, almohadas y toppers con las medidas de su catálogo), con su coste, su PVP mínimo y sus acabados. Después solo falta revisar y poner fotos.</li>
+    <li><b>Escandallos</b>: rellenar el escandallo de cada categoría (transporte, envío, comisiones, publicidad, margen…). De ahí sale el precio de venta de cada medida.</li>
     <li><b>Documentos</b>: hacer presupuestos, pedidos y albaranes. Los <b>clientes</b> se guardan solos la primera vez que se les hace un documento.</li>
   </ol>
   <p>Los campos con <b>*</b> son obligatorios: sin ellos no se puede guardar. En cada tabla, la columna «Sale» dice si ese dato aparece en el documento impreso que recibe el cliente.</p>
@@ -142,33 +144,60 @@ Plazo de entrega: 7 a 10 días laborables.
 
 <section class="bloque" id="productos">
   <h2>3. Productos</h2>
-  <p class="donde">Gestión → Productos → + Producto. Para cambiar uno existente: botón «Abrir» en su tarjeta.</p>
-  <p>Cada medida y cada acabado que tenga precio distinto es <b>un producto aparte</b>. Un colchón en 90, 135 y 150 son tres productos; un canapé en roble y en blanco con el mismo precio puede ser uno solo, indicando el acabado en la línea del documento.</p>
+  <p class="donde">Gestión → Productos → + Producto, o «Cargar la tarifa de Azorín». Para cambiar uno existente: botón «Abrir» en su tarjeta.</p>
+  <p>Cada producto es <b>un modelo</b> (Canapé Iron 30, Colchón Viena) con <b>todas sus medidas</b> dentro, y sus <b>acabados y extras</b> (color, tapizado, tapa, apertura, bisagra, patas…). Al hacer un presupuesto se busca el modelo y se eligen la medida y los acabados.</p>
   <div class="tabla"><table class="campos">
     <thead><tr><th>Campo</th><th>Obligatorio</th><th>Qué poner</th><th>Ejemplo</th><th>Sale</th></tr></thead>
     <tbody>
-      <tr><td>Nombre</td><td class="ob">Sí</td><td>Nombre con el que lo verá el cliente: tipo de producto, modelo y medida. Corto y claro, sin precios ni promociones.</td><td class="ej">Colchón Landez 135 × 190</td><td class="sale si">Sí, en negrita</td></tr>
-      <tr><td>Referencia</td><td class="ob">Sí</td><td>Código interno y único: si ya existe, el panel avisa al guardar. Recomendado: 3 letras del tipo, guion y la medida; si hay variantes, otro guion y el acabado.<br>COL = colchón, CAN = canapé, BAS = base o somier, ALM = almohada, TEX = textil, ACC = accesorio, SER = servicio.</td><td class="ej">COL-135
-CAN-135-ROB
-SER-MONTAJE</td><td class="sale si">Sí, columna Artículo</td></tr>
-      <tr><td>Categoría</td><td class="ob">Sí (viene puesta)</td><td>Colchones, Canapés, Bases y somieres, Almohadas, Textil, Accesorios o Servicios. Sirve para filtrar el catálogo. Usad <b>Servicios</b> para montaje, retirada del colchón viejo, portes especiales, etc.: no cuentan como bulto.</td><td class="ej">Canapés</td><td class="sale no">No</td></tr>
-      <tr><td>Medidas</td><td class="ob">No</td><td>Ancho × largo × alto, en centímetros, con «×» o «x». Sale como primera característica («Medidas: …»).</td><td class="ej">135 × 190 × 28 cm</td><td class="sale si">Sí</td></tr>
-      <tr><td>Proveedor</td><td class="ob">No</td><td>Quién os lo fabrica o vende. Al escribir aparecen los de la pestaña Proveedores.</td><td class="ej">ECUS</td><td class="sale no">No</td></tr>
-      <tr><td>Características</td><td class="ob">No, pero muy recomendable</td><td><b>Una por línea</b>, con el formato «Qué: cómo». Es el texto gris que sale debajo del nombre. Poned lo que el cliente necesita para saber qué compra: núcleo, firmeza, altura, tejido, acabado, color, garantía específica. Evitad frases comerciales largas.</td><td class="ej">Núcleo: muelle ensacado y viscoelástica
-Firmeza: media
-Altura: 28 cm
-Funda: tejido 3D desenfundable</td><td class="sale si">Sí</td></tr>
-      <tr><td>Foto</td><td class="ob">No</td><td>Una foto del producto, mejor de frente y sobre fondo blanco. Vale una foto del móvil o de la web: el panel la reduce sola. Si una línea tiene foto, sale una columna de fotos en el documento.</td><td class="ej">colchon-135.jpg</td><td class="sale si">Sí, pequeña</td></tr>
-      <tr><td>Precio de venta sin IVA *</td><td class="ob">Sí</td><td>Lo que cobráis por unidad, <b>sin IVA</b>. Si solo sabéis el precio con IVA (el de la web), dividid entre 1,21: 499 € con IVA → 499 / 1,21 = 412,40 € sin IVA. El panel muestra debajo el precio con IVA para comprobarlo. Si es gratis (montaje incluido), poned 0: saldrá «Incluido».</td><td class="ej">412,40</td><td class="sale si">Sí</td></tr>
-      <tr><td>IVA</td><td class="ob">Sí (viene 21 %)</td><td>El tipo de IVA del producto. Colchones, canapés, almohadas, textil y servicios de montaje van al 21 %. Cambiadlo solo si la gestoría os dice otra cosa.</td><td class="ej">21 %</td><td class="sale si">Sí, en los totales</td></tr>
-      <tr><td>Coste de compra sin IVA</td><td class="ob">No</td><td>Lo que os cuesta a vosotros, sin IVA. Es solo para saber el margen; <b>nunca sale</b> en los documentos.</td><td class="ej">230,00</td><td class="sale no">No</td></tr>
-      <tr><td>Peso por unidad (kg)</td><td class="ob">No</td><td>Peso de una unidad embalada, en kilos. Se usa para sumar el peso del envío con el botón «Calcular de los productos».</td><td class="ej">28</td><td class="sale no">Solo en el total del envío</td></tr>
-      <tr><td>Volumen por unidad (m³)</td><td class="ob">No</td><td>Lo que ocupa una unidad embalada, en metros cúbicos: ancho × largo × alto <b>en metros</b>. Colchón embalado de 1,40 × 1,95 × 0,30 m = 0,82 m³. Si va enrollado, medid el rollo.</td><td class="ej">0,82</td><td class="sale no">Solo en el total del envío</td></tr>
-      <tr><td>Bultos por unidad</td><td class="ob">No (viene 1)</td><td>En cuántos paquetes llega una unidad. Un canapé que viene en caja y tapa aparte son 2 bultos. Los servicios no cuentan.</td><td class="ej">2</td><td class="sale no">Solo en el total del envío</td></tr>
+      <tr><td>Nombre del modelo</td><td class="ob">Sí</td><td>Tipo de producto y modelo, <b>sin la medida</b> (la medida se añade sola al elegirla en el documento).</td><td class="ej">Canapé Iron 30</td><td class="sale si">Sí, en negrita, con la medida</td></tr>
+      <tr><td>Referencia</td><td class="ob">Sí</td><td>Código interno y único del modelo. Los de Azorín empiezan por AZ- y la categoría: AZ-CAN-IRON30. En el documento se le añade la medida: AZ-CAN-IRON30-150190.</td><td class="ej">AZ-CAN-IRON30</td><td class="sale si">Sí, columna Artículo</td></tr>
+      <tr><td>Categoría</td><td class="ob">Sí (viene puesta)</td><td>Colchones, Canapés, Bases y somieres, Cabezales, Almohadas, Textil, Accesorios o Servicios. Decide qué escandallo usa el producto y sirve para filtrar. Usad <b>Servicios</b> para montaje, retirada del colchón viejo, portes especiales: no cuentan como bulto.</td><td class="ej">Canapés</td><td class="sale no">No</td></tr>
+      <tr><td>Proveedor y su referencia</td><td class="ob">No</td><td>Quién lo fabrica y cómo lo llama él (código o página de su tarifa).</td><td class="ej">Azorín Descanso · tarifa 26/27 pág. 21</td><td class="sale no">No</td></tr>
+      <tr><td>Características</td><td class="ob">No, pero muy recomendable</td><td><b>Una por línea</b>, con el formato «Qué: cómo». Lo que el cliente necesita para saber qué compra: núcleo, firmeza, altura, tejido. Nada de frases comerciales largas.</td><td class="ej">Tipo: Muelles ensacados + visco
+Altura: 25/26 cm
+Firmeza: 6/10</td><td class="sale si">Sí</td></tr>
+      <tr><td>Notas internas</td><td class="ob">No</td><td>Lo que tenéis que saber vosotros: plazos, cosas a confirmar con el proveedor. <b>Nunca sale</b> en los documentos.</td><td class="ej">Series 2 y 3: pedir precio</td><td class="sale no">No</td></tr>
+      <tr><td>IVA</td><td class="ob">Sí (viene 21 %)</td><td>Colchones, canapés, almohadas, textil y montaje van al 21 %. Cambiadlo solo si la gestoría os dice otra cosa.</td><td class="ej">21 %</td><td class="sale si">En los totales</td></tr>
+      <tr><td>Bultos por unidad</td><td class="ob">No (viene 1)</td><td>En cuántos paquetes llega una unidad. Un canapé con la tapa aparte son 2.</td><td class="ej">2</td><td class="sale no">Solo en el total del envío</td></tr>
+      <tr><td>Los costes llevan IVA</td><td class="ob">—</td><td>Marcadlo cuando los costes que escribís son con IVA, como los de Azorín (viene marcado). El panel les quita el IVA para calcular.</td><td class="ej">✔</td><td class="sale no">No</td></tr>
       <tr><td>Se sigue vendiendo</td><td class="ob">—</td><td>Desmarcadlo cuando dejéis de vender un producto. No se borra, para que los documentos antiguos sigan bien, pero deja de salir al buscar.</td><td class="ej">✔</td><td class="sale no">No</td></tr>
     </tbody>
   </table></div>
+  <h3>Medidas y precios</h3>
+  <p>Para crear las medidas, escribid los anchos y los largos y pulsad <b>Crear medidas</b> (en cabezales y almohadas, dejad los largos vacíos). Si un modelo tiene <b>versiones</b> con precio distinto (cajón entero o partido, tapa partida, tapa de cama a motor), escribid la versión antes de crear sus medidas.</p>
+  <div class="tabla"><table class="campos">
+    <thead><tr><th>Columna</th><th>Qué poner</th><th>Ejemplo</th></tr></thead>
+    <tbody>
+      <tr><td>Medida</td><td>Ancho × largo en cm. En cabezales: «Cama 135».</td><td class="ej">150×190</td></tr>
+      <tr><td>Versión</td><td>Vacía si el modelo solo tiene una. Sale en el documento como primera característica.</td><td class="ej">Cajón partido + tapa entera</td></tr>
+      <tr><td>Ref.</td><td>Vacía: se pone sola (referencia del modelo + medida).</td><td class="ej"></td></tr>
+      <tr><td>Coste</td><td>Lo que os cuesta esa medida. Con IVA si está marcada la casilla «Los costes llevan IVA».</td><td class="ej">176,68</td></tr>
+      <tr><td>PVP mín.</td><td>Precio mínimo con IVA al que el proveedor os deja venderlo. El precio nunca bajará de ahí. Azorín: es la cifra de su tarifa.</td><td class="ej">508</td></tr>
+      <tr><td>Venta</td><td><b>Vacía</b>: el precio lo calcula el escandallo y se ve en gris. Escribid uno solo si queréis fijarlo a mano.</td><td class="ej"></td></tr>
+      <tr><td>Peso y volumen</td><td>De una unidad embalada, para sumar el envío. Volumen en m³: ancho × largo × alto en metros.</td><td class="ej">38 · 0,52</td></tr>
+    </tbody>
+  </table></div>
+  <h3>Acabados y extras</h3>
+  <p>Cada grupo es una pregunta que se hace al añadir el producto a un documento: «Tapizado», «Tapa», «Bisagra». <b>Hay que elegir una</b> para lo que siempre se decide (color, tapa normal o mixta); <b>Opcional</b> para extras que pueden no ir (bisagra especial, patas, mando). Cada opción lleva su coste y su PVP mínimo (lo que suma la tarifa); lo que suma al precio de venta lo calcula el panel con el mismo margen. «+ Venta» solo para fijarlo a mano.</p>
   <div class="nota">Cambiar un producto <b>no cambia</b> los documentos ya hechos: cada documento guarda su propia copia del nombre, las características y el precio. La foto sí se toma siempre del catálogo.</div>
+</section>
+
+<section class="bloque" id="escandallos">
+  <h2>3 bis. Escandallos: del coste al precio</h2>
+  <p class="donde">Gestión → Escandallos.</p>
+  <p>El escandallo dice cuánto cuesta de verdad vender un producto y a qué precio hay que venderlo. Cada <b>categoría</b> tiene el suyo, y un producto concreto puede tener uno propio («Editar escandallo» en su tabla).</p>
+  <div class="tabla"><table class="campos">
+    <thead><tr><th>Campo</th><th>Qué poner</th><th>Ejemplo</th></tr></thead>
+    <tbody>
+      <tr><td>Costes en € por unidad</td><td>Lo que cuesta cada unidad vendida además de comprarla: recogerla en el proveedor, el envío al cliente, el embalaje, el montaje.</td><td class="ej">Envío al cliente: 45</td></tr>
+      <tr><td>Costes en % de la venta</td><td>Lo que se lleva un porcentaje de lo que cobráis: comisión del cobro con tarjeta o Klarna, publicidad, devoluciones y garantía.</td><td class="ej">Publicidad: 10</td></tr>
+      <tr><td>Costes en % de la compra</td><td>Lo que va en proporción al coste: mermas, seguros de la mercancía.</td><td class="ej">2</td></tr>
+      <tr><td>Margen</td><td>Lo que queréis ganar, en % del precio de venta sin IVA, después de pagar todo lo anterior.</td><td class="ej">25</td></tr>
+      <tr><td>Redondeo</td><td>Cómo queda el precio con IVA. «Acabado en 9 €» da precios como 509 €, 679 €.</td><td class="ej">Acabado en 9 €</td></tr>
+    </tbody>
+  </table></div>
+  <p>Cálculo: precio sin IVA = (coste sin IVA + costes en € + costes en % de la compra) ÷ (1 − % de la venta − margen). Luego se suma el IVA, se redondea y, si queda por debajo del PVP mínimo del proveedor, se sube hasta él. La tabla de cada producto enseña, medida a medida, la compra, los otros costes, el coste total, la venta, el beneficio y el margen que queda de verdad.</p>
+  <div class="nota">Con Azorín, en muchos productos manda su PVP mínimo: el escandallo da menos y el precio sube hasta el mínimo. Eso se ve con la etiqueta «PVP mín.» en la tabla, y el margen real sale más alto que el que pedís.</div>
 </section>
 
 <section class="bloque" id="clientes">
@@ -256,9 +285,16 @@ Pedido 45/2026</td><td class="sale si">Sí</td></tr>
   <h3>Añadir productos del catálogo</h3>
   <ol class="pasos">
     <li>En el buscador azul <b>Productos</b>, escribid parte del nombre, la referencia, la categoría o la medida. Valen varias palabras y da igual poner tildes: «colchon 135», «can-135», «canapé roble».</li>
-    <li>Aparece la lista con foto, referencia y precio. Pulsad <kbd>Intro</kbd> para añadir el primero, moveos con <kbd>↑</kbd> <kbd>↓</kbd> o haced clic en el que queráis.</li>
-    <li>Se añade una línea con la foto, la referencia, el nombre, las características, el precio y el IVA del catálogo, y cantidad 1. El buscador se vacía para añadir el siguiente.</li>
+    <li>Aparece la lista con foto, referencia y precio. Pulsad <kbd>Intro</kbd> para el primero, moveos con <kbd>↑</kbd> <kbd>↓</kbd> o haced clic en el que queráis.</li>
+    <li>Si el producto tiene medidas o acabados, se abre un recuadro para elegir la <b>medida</b> (agrupada por versiones), cada acabado y la cantidad. Abajo se ve el precio por unidad. Pulsad <b>Añadir al documento</b> (o <kbd>Intro</kbd>).</li>
+    <li>Se añade una línea con la foto, la referencia, el nombre con la medida, la versión, los acabados elegidos, las características, el <b>precio del escandallo</b> y el IVA. El buscador queda listo para el siguiente.</li>
   </ol>
+  <h3>Cambiar el precio o hacer descuento</h3>
+  <ul>
+    <li><b>Precio a mano</b>: se escribe encima del precio de la línea. La casilla se pone en ámbar y, al pasar el ratón, dice el precio de catálogo.</li>
+    <li><b>Descuento comercial</b>: abajo, «Descuento comercial a todas las líneas», escribid el % y pulsad Aplicar. Se pone en el «Dto. 1» de cada línea con precio; luego se puede tocar línea a línea.</li>
+    <li><b>Margen</b>: debajo del total se ve el margen sobre la compra del documento (solo en el panel, <b>no sale</b> en el PDF). En verde si va bien, ámbar si baja del 15 %, rojo si se pierde dinero. No resta envío, publicidad ni comisiones: eso está en el escandallo.</li>
+  </ul>
   <p>Para algo que no está en el catálogo (un portes especial, un arreglo), usad <b>+ Línea libre</b> y escribid a mano.</p>
   <h3>Campos de cada línea</h3>
   <div class="tabla"><table class="campos">
@@ -346,7 +382,7 @@ Tela: gris perla</td><td class="sale si">Sí</td></tr>
     <tbody>
       <tr><td>El precio sale un 21 % más caro de lo que queríais</td><td>Se puso el precio con IVA en un campo que es sin IVA.</td><td>Dividid entre 1,21 y corregidlo en el producto (y en la línea si ya estaba en un documento).</td></tr>
       <tr><td>Al buscar, el producto no aparece</td><td>No está dado de alta, está escrito de otra forma o está marcado como que ya no se vende.</td><td>Probad con la referencia o con una sola palabra; revisad en Productos si tiene marcada la casilla «Se sigue vendiendo».</td></tr>
-      <tr><td>«La referencia … ya es de …»</td><td>Dos productos con la misma referencia.</td><td>Añadid el acabado o la variante: CAN-135-ROB, CAN-135-BLA.</td></tr>
+      <tr><td>«La referencia … ya es de …»</td><td>Dos productos con la misma referencia.</td><td>Cada modelo lleva una referencia propia; las medidas y los acabados van dentro del mismo producto, no como productos aparte.</td></tr>
       <tr><td>«Ya hay un … con el número …»</td><td>Se cambió el número a mano y coincide con otro.</td><td>Dejad el número que se propone solo.</td></tr>
       <tr><td>El cliente sale duplicado en Clientes</td><td>Se escribió su nombre de dos formas.</td><td>Al hacer el documento elegidlo de la lista. Borrad el duplicado en Clientes.</td></tr>
       <tr><td>Huecos en amarillo en el documento</td><td>Faltan datos en «Datos de la empresa».</td><td>Rellenad razón social, NIF y domicilio.</td></tr>

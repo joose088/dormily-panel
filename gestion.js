@@ -2,8 +2,23 @@
 // El documento se monta buscando productos del catálogo: al elegir uno se añade con su foto, características y precio.
 // Recibe del panel (index.html) su estado y sus utilidades; devuelve la vista y los formularios.
 import { documentoHTML, ESTILOS_DOCUMENTO, calcular, EMPRESA, TIPOS, PREFIJO_COMPRA, esCompra, tituloDe } from './documento.js';
+import { desglose, precioExtra, costeNeto, costeCompra, datosCalculo, escandalloDe, ESCANDALLO_BASE, TIPOS_COSTE, REDONDEOS } from './escandallo.js';
+import { TARIFA_AZORIN } from './tarifa-azorin.js';
 
-export const CATEGORIAS = ['Colchones', 'Canapés', 'Bases y somieres', 'Almohadas', 'Textil', 'Accesorios', 'Servicios'];
+export const CATEGORIAS = ['Colchones', 'Canapés', 'Bases y somieres', 'Cabezales', 'Almohadas', 'Textil', 'Accesorios', 'Servicios'];
+// Widths and lengths offered when creating the sizes of a product, by category (editable in the form).
+const MEDIDAS_TIPICAS = {
+  Colchones: ['80, 90, 105, 135, 150, 160', '190, 200'], 'Canapés': ['90, 105, 135, 150, 160', '190'],
+  'Bases y somieres': ['90, 105, 135, 150, 160', '190'], Cabezales: ['90, 105, 135, 150, 160', ''], Almohadas: ['70, 90, 135, 150', '']
+};
+// Finish and extra groups that can be added with one click; their prices start at 0 and are filled in per model.
+const GRUPOS_TIPICOS = {
+  Colchones: [['Firmeza', true, ['Media', 'Firme']]],
+  'Canapés': [['Color de la madera', true, ['Cambrian', 'Blanco', 'Ártico', 'Amazonas']], ['Tapizado', true, ['Serie 1', 'Serie 2', 'Serie 3']],
+    ['Tapa', true, ['Entera', 'Mixta']], ['Apertura', true, ['Frontal', 'Lateral']], ['Bisagra', false, ['Doble pistón', 'Motor', 'Vertical / horizontal']]],
+  'Bases y somieres': [['Patas', false, ['Juego de 4 patas 25 cm', 'Juego de 6 patas 25 cm', 'Juego de 7 patas 25 cm']], ['Color', true, ['Beige', 'Gris marengo']]],
+  Cabezales: [['Tapizado', true, ['Serie 1', 'Serie 2', 'Serie 3']], ['Color', true, ['Beige', 'Gris', 'Blanco']]]
+};
 export const ESTADOS_DOC = {
   presupuesto: [['borrador', 'Borrador'], ['enviado', 'Enviado'], ['aceptado', 'Aceptado'], ['rechazado', 'Rechazado']],
   pedido: [['abierto', 'En curso'], ['servido', 'Servido'], ['cancelado', 'Cancelado']],
@@ -21,7 +36,19 @@ const CONDICIONES_BASE = {
 };
 const sinTildes = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const decimal = (v) => (v === '' || v == null ? '' : String(v).replace('.', ','));
+const fPct = (n) => (Math.round(n * 10) / 10).toString().replace('.', ',') + ' %';
 const lineasDe = (txt) => String(txt || '').split('\n').map((x) => x.trim()).filter(Boolean);
+// A product has either one price (precio/coste/medidas) or a list of sizes (variantes), each with its own price.
+const variantesDe = (p) => (p && Array.isArray(p.variantes) ? p.variantes.filter((v) => v.medida || v.version) : []);
+const gruposDe = (p) => (p && Array.isArray(p.opciones) ? p.opciones.filter((g) => g.nombre && (g.valores || []).length) : []);
+const nombreVariante = (v) => [v.medida, v.version].filter(Boolean).join(' · ');
+const textoBusqueda = (p) => [p.ref, p.nombre, p.categoria, p.medidas, p.detalle, p.proveedor, p.refProveedor].concat(variantesDe(p).map((v) => nombreVariante(v) + ' ' + (v.ref || ''))).join(' ');
+const numeros = (txt) => String(txt || '').split(/[,;\s]+/).map((x) => x.trim()).filter(Boolean);
+const dimension = (m, i) => parseFloat(String(m || '').split(/[×x]/)[i]) || 0;
+// Sizes are listed by version (electric-bed lids last), then width and length, so they read like a price table.
+const motorUltimo = (v) => (/motor/i.test(v.version || '') ? 1 : 0);
+const ordenVariantes = (a, b) => motorUltimo(a) - motorUltimo(b) || (a.version || '').localeCompare(b.version || '', 'es') || dimension(a.medida, 0) - dimension(b.medida, 0) ||
+  dimension(a.medida, 1) - dimension(b.medida, 1) || String(a.medida || '').localeCompare(String(b.medida || ''), 'es');
 
 export function crearGestion(x) {
   const { S, $, esc, escribir, col, aviso, cerrar, render, euros, num, nuevoId, hoyIso, sumaDias, textoFecha, cabecera, abrirHoja, PERSONAS } = x;
@@ -45,12 +72,33 @@ export function crearGestion(x) {
     return String(max + 1).padStart(4, '0');
   }
   const producto = (id) => S.productos.find((p) => p.id === id);
+  /* ---------- Precios: a mano, o calculados con el escandallo ---------- */
+  const plantillas = () => (S.ajustes.find((a) => a.id === 'escandallos') || {}).categorias || {};
+  // Full escandallo of a size (or of the product without sizes); with the hand price when there is one.
+  const calculo = (p, v, e) => { const x = v || p; return desglose(costeCompra(p, x), e || escandalloDe(p, plantillas()), datosCalculo(p, x), Number(x.precio) || 0); };
+  const calculoAuto = (p, v, e) => { const x = v || p; return desglose(costeCompra(p, x), e || escandalloDe(p, plantillas()), datosCalculo(p, x)); };
+  // Selling price without VAT of a size (or of a product without sizes): the one typed by hand, else the escandallo's.
+  const precioDe = (p, v) => { const manual = Number((v || p).precio) || 0; if (manual) return manual; const c = calculoAuto(p, v); return c.valido ? c.precio : 0; };
+  const precioOpcion = (p, x) => Number(x.precio) || precioExtra(costeCompra(p, x), escandalloDe(p, plantillas()), datosCalculo(p, x));
+  // Purchase cost without VAT (what goes in a purchase order and in the margin).
+  const costeDe = (p, x) => costeNeto(costeCompra(p, x), datosCalculo(p, x));
+  const desde = (p, compra) => {
+    const f = (v) => (compra ? costeDe(p, v || p) : precioDe(p, v));
+    const vs = variantesDe(p);
+    if (!vs.length) return f(null);
+    const xs = vs.map(f).filter(Boolean);
+    return xs.length ? Math.min(...xs) : 0;
+  };
   const buscarProductos = (q) => {
     const t = sinTildes(q).split(/\s+/).filter(Boolean);
     return S.productos.filter((p) => p.activo !== false).filter((p) => {
-      const texto = sinTildes([p.ref, p.nombre, p.categoria, p.medidas, p.detalle].join(' '));
+      const texto = sinTildes(textoBusqueda(p));
       return t.every((w) => texto.includes(w));
-    }).sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es'));
+    }).map((p) => {
+      // Products whose name or reference has the words go first («iron 30» → Iron 30 before Iron 20 in 130×190).
+      const nombre = sinTildes(p.nombre + ' ' + p.ref).split(/[^a-z0-9]+/);
+      return [p, t.filter((w) => nombre.includes(w)).length * 2 + t.filter((w) => nombre.some((n) => n.startsWith(w))).length];
+    }).sort((a, b) => b[1] - a[1] || (a[0].nombre || '').localeCompare(b[0].nombre || '', 'es')).map(([p]) => p);
   };
 
   /* ---------- Foto de producto: se reduce a 480 px en JPEG y se guarda dentro del producto ---------- */
@@ -71,17 +119,19 @@ export function crearGestion(x) {
   /* ---------- Vista ---------- */
   function renderGestion() {
     const G = S.gestion;
-    const subs = [['documentos', 'Documentos', S.documentos.length], ['productos', 'Productos', S.productos.length], ['clientes', 'Clientes', S.clientes.length], ['empresa', 'Datos de la empresa', null]];
+    const subs = [['documentos', 'Documentos', S.documentos.length], ['productos', 'Productos', S.productos.length], ['escandallos', 'Escandallos', null], ['clientes', 'Clientes', S.clientes.length], ['empresa', 'Datos de la empresa', null]];
     const acciones = {
       documentos: '<button class="btn primario" type="button" data-nuevo="presupuesto">+ Presupuesto</button><button class="btn" type="button" data-nuevo="pedido">+ Pedido de venta</button><button class="btn" type="button" data-nuevo="pedidoCompra">+ Pedido de compra</button><button class="btn" type="button" data-nuevo="albaran">+ Albarán</button>',
-      productos: '<button class="btn primario" type="button" data-nuevo="producto">+ Producto</button>',
+      productos: '<button class="btn primario" type="button" data-nuevo="producto">+ Producto</button>' + (S.escribir ? '<button class="btn" type="button" data-g-azorin="1">Cargar la tarifa de Azorín</button>' : ''),
+      escandallos: '',
       clientes: '<button class="btn primario" type="button" data-nuevo="cliente">+ Cliente</button>',
       empresa: ''
     }[G.sub];
-    let html = cabecera('Gestión', 'Productos, clientes, presupuestos, pedidos y albaranes.', acciones) +
+    let html = cabecera('Gestión', 'Productos, escandallos, clientes, presupuestos, pedidos y albaranes.', acciones) +
       '<div class="filtros">' + subs.map(([k, n, c]) => '<button class="chip" type="button" data-gsub="' + k + '" aria-pressed="' + (G.sub === k) + '">' + n + (c ? ' <span style="opacity:.6">' + c + '</span>' : '') + '</button>').join('') +
       '<a class="chip" href="guia-gestion.html" target="_blank" rel="noopener" style="margin-left:auto;text-decoration:none;color:inherit">Guía: qué poner en cada campo</a></div>';
     if (G.sub === 'productos') html += vistaProductos();
+    else if (G.sub === 'escandallos') html += vistaEscandallos();
     else if (G.sub === 'clientes') html += vistaClientes();
     else if (G.sub === 'empresa') html += vistaEmpresa();
     else html += vistaDocumentos();
@@ -114,18 +164,20 @@ export function crearGestion(x) {
     const cats = ['todas'].concat(CATEGORIAS.filter((c) => S.productos.some((p) => p.categoria === c)));
     const q = sinTildes(G.buscar);
     const lista = S.productos.filter((p) => G.categoria === 'todas' || p.categoria === G.categoria)
-      .filter((p) => !q || sinTildes([p.ref, p.nombre, p.categoria, p.medidas, p.detalle].join(' ')).includes(q))
+      .filter((p) => !q || sinTildes(textoBusqueda(p)).includes(q))
       .sort((a, b) => (a.categoria || '').localeCompare(b.categoria || '') || (a.nombre || '').localeCompare(b.nombre || '', 'es'));
     let html = '<div class="filtros">' + cats.map((c) => '<button class="chip" type="button" data-gcat="' + esc(c) + '" aria-pressed="' + (G.categoria === c) + '">' + esc(c === 'todas' ? 'Todas' : c) + '</button>').join('') + buscador('Buscar producto') + '</div>';
     if (!S.productos.length) return html + '<div class="vacio">El catálogo está vacío. Da de alta cada producto con «+ Producto»: foto, referencia, características y precio. Luego, al hacer un documento, basta con buscarlo.</div>';
     if (!lista.length) return html + '<div class="vacio">Ningún producto con este filtro.</div>';
     return html + '<div class="rejilla-cards g-productos">' + lista.map((p) => {
-      const iva = Number(p.iva ?? 21);
+      const iva = Number(p.iva ?? 21), vs = variantesDe(p), gs = gruposDe(p), pr = desde(p);
+      const medidas = [...new Set(vs.map((v) => v.medida).filter(Boolean))];
       return '<article class="card g-prod' + (p.activo === false ? ' g-inactivo' : '') + '">' +
         '<div class="g-foto">' + (p.foto ? '<img src="' + esc(p.foto) + '" alt="">' : '<span>Sin foto</span>') + '</div>' +
         '<div class="g-prod-txt"><h3>' + esc(p.nombre) + '</h3><div class="linea"><span>' + esc(p.ref) + '</span>' + (p.categoria ? '<span class="pill">' + esc(p.categoria) + '</span>' : '') + (p.activo === false ? '<span class="pill bad">De baja</span>' : '') + '</div>' +
-        (p.medidas ? '<div class="linea">' + esc(p.medidas) + '</div>' : '') +
-        '<div class="linea"><b style="color:var(--ink)">' + euros(p.precio) + '</b><span>+ IVA · ' + euros(Math.round(p.precio * (1 + iva / 100) * 100) / 100) + ' con IVA</span></div>' +
+        (vs.length ? '<div class="linea">' + esc(medidas.slice(0, 6).join(', ') + (medidas.length > 6 ? '… (' + medidas.length + ' medidas)' : '')) + '</div>' : p.medidas ? '<div class="linea">' + esc(p.medidas) + '</div>' : '') +
+        (gs.length ? '<div class="linea">' + esc(gs.map((g) => g.nombre).join(' · ')) + '</div>' : '') +
+        (pr ? '<div class="linea"><b style="color:var(--ink)">' + (vs.length > 1 ? 'Desde ' : '') + euros(pr) + '</b><span>+ IVA · ' + euros(Math.round(pr * (1 + iva / 100) * 100) / 100) + ' con IVA</span></div>' : '<div class="linea"><span class="pill warn">Sin precio ni coste</span></div>') +
         '<div class="pie"><span class="der"><button class="mini" type="button" data-abrir="productos:' + esc(p.id) + '">Abrir</button></span></div></div></article>';
     }).join('') + '</div>';
   }
@@ -151,35 +203,195 @@ export function crearGestion(x) {
   }
 
   /* ---------- Producto ---------- */
+  // A product is a model (e.g. «Canapé Iron 30») with its sizes (each with cost, price, weight and volume)
+  // and its finish and extra groups (each value can add to the cost and to the price).
   function formProducto(p) {
     const nuevo = !p;
-    p = p || { categoria: 'Colchones', iva: '21', activo: true };
+    // New products start as Azorín ones: its cost list is quoted with VAT included.
+    p = p || { categoria: 'Colchones', iva: '21', activo: true, bultos: 1, proveedor: 'Azorín Descanso', costeConIva: true };
     let foto = p.foto || '';
+    let variantes = variantesDe(p).map((v) => Object.assign({}, v));
+    let grupos = gruposDe(p).map((g) => Object.assign({}, g, { valores: g.valores.map((x) => Object.assign({}, x)) }));
+    const ro = S.escribir ? '' : ' disabled';
     const campos = [
-      { n: 'nombre', l: 'Nombre', req: true, ancho: true, max: 140, ph: 'Ej.: Colchón Landez 135 × 190' },
-      { n: 'ref', l: 'Referencia', req: true, max: 40, ph: 'Ej.: COL-135' },
+      { n: 'nombre', l: 'Nombre del modelo', req: true, ancho: true, max: 140, ph: 'Ej.: Canapé Iron 30 (sin la medida: las medidas van abajo)' },
+      { n: 'ref', l: 'Referencia', req: true, max: 40, ph: 'Ej.: CAN-IRON30' },
       { n: 'categoria', l: 'Categoría', t: 'select', op: CATEGORIAS },
-      { n: 'medidas', l: 'Medidas', max: 80, ph: 'Ej.: 135 × 190 × 30 cm' },
       { n: 'proveedor', l: 'Proveedor', max: 120, lista: S.proveedores.map((x) => x.nombre) },
-      { n: 'detalle', l: 'Características (una por línea; salen en el documento)', t: 'textarea', ancho: true, ph: 'Núcleo: muelle ensacado y viscoelástica\nFirmeza: media\nFunda: tejido 3D desenfundable' },
-      { n: 'sep1', l: 'Precio', t: 'sep' },
-      { n: 'precio', l: 'Precio de venta sin IVA (€)', t: 'dinero', req: true },
+      { n: 'refProveedor', l: 'Referencia del proveedor', max: 60, ph: 'Ej.: 1052 o página de su tarifa' },
+      { n: 'detalle', l: 'Características (una por línea; salen en el documento)', t: 'textarea', ancho: true, ph: 'Altura: 30 cm\nNúcleo: muelle ensacado y viscoelástica\nFirmeza: media' },
+      { n: 'notasInternas', l: 'Notas internas (no salen en los documentos)', t: 'textarea', ancho: true, ph: 'Plazos, lo que hay que confirmar con el proveedor…' },
       { n: 'iva', l: 'IVA', t: 'select', op: [['21', '21 %'], ['10', '10 %'], ['4', '4 %'], ['0', 'Sin IVA']] },
-      { n: 'coste', l: 'Coste de compra sin IVA (€, no sale en documentos)', t: 'dinero' },
-      { n: 'sep2', l: 'Envío', t: 'sep' },
+      { n: 'bultos', l: 'Bultos por unidad', t: 'dinero', def: 1 },
+      { n: 'sepC', l: 'Coste de compra', t: 'sep' },
+      { n: 'costeConIva', l: 'Los costes que escribo llevan el IVA incluido (como la tarifa de costes de Azorín)', t: 'check' },
+      { n: 'sepU', l: 'Precio único (solo si el producto no tiene medidas)', t: 'sep' },
+      { n: 'medidas', l: 'Medida', max: 80, ph: 'Ej.: 70 × 40 cm' },
+      { n: 'coste', l: 'Coste de compra (€, no sale en documentos)', t: 'dinero' },
+      { n: 'pvpMin', l: 'PVP mínimo del proveedor, con IVA (€)', t: 'dinero' },
+      { n: 'precio', l: 'Precio de venta sin IVA, solo si lo fijas a mano (€)', t: 'dinero' },
       { n: 'peso', l: 'Peso por unidad (kg)', t: 'dinero' },
       { n: 'volumen', l: 'Volumen por unidad (m³)', t: 'dinero' },
-      { n: 'bultos', l: 'Bultos por unidad', t: 'dinero', def: 1 },
       { n: 'activo', l: 'Se sigue vendiendo (si no, no sale al buscar)', t: 'check' }
     ];
+    const tipicas = MEDIDAS_TIPICAS[p.categoria] || ['', ''];
     const extra = '<div class="campo ancho"><span class="lbl">Foto</span><div class="g-foto-edit"><div class="g-foto" id="p-foto">' + (foto ? '<img src="' + esc(foto) + '" alt="">' : '<span>Sin foto</span>') + '</div>' +
       (S.escribir ? '<div class="g-foto-btns"><label class="btn" for="p-foto-in">Elegir foto</label><input type="file" id="p-foto-in" accept="image/*" hidden><button type="button" class="btn" id="p-foto-quitar"' + (foto ? '' : ' hidden') + '>Quitar</button></div>' : '') + '</div></div>' +
-      '<div class="campo ancho" id="p-pvp" style="font-size:13px;color:var(--muted)"></div>';
+      '<div class="campo ancho" id="p-pvp" style="font-size:13px;color:var(--muted)"></div>' +
+      '<div class="separador">Medidas y precios</div>' +
+      '<div class="campo ancho"><p class="p-ayuda">Cada medida con su coste de compra y, si el proveedor lo exige, su PVP mínimo con IVA (el precio nunca bajará de ahí). El precio de venta lo calcula el escandallo (Gestión → Escandallos) y sale en gris; escribe uno solo si quieres fijarlo a mano. Si un modelo tiene versiones con precio distinto (por ejemplo cajón entero o partido, o tapa de cama a motor), escribe la versión en su columna.</p>' +
+        (S.escribir ? '<div class="p-gen"><label>Anchos (cm)<input id="p-anchos" value="' + esc(tipicas[0]) + '" placeholder="90, 135, 150"></label><label>Largos (cm)<input id="p-largos" value="' + esc(tipicas[1]) + '" placeholder="190, 200 (vacío en cabezales)"></label>' +
+          '<label>Versión (opcional)<input id="p-version" placeholder="Ej.: Cajón partido"></label><button type="button" class="btn" id="p-gen">Crear medidas</button></div>' : '') +
+        '<div id="p-vars"></div>' +
+        (S.escribir ? '<div class="p-acc"><button type="button" class="btn" id="p-var-add">+ Una medida</button></div>' : '') +
+      '</div>' +
+      '<div class="separador">Acabados y extras</div>' +
+      '<div class="campo ancho"><p class="p-ayuda">Grupos que se eligen al añadir el producto a un presupuesto o pedido: color, tapizado, tipo de tapa, apertura, bisagra, patas… Cada opción suma su coste (y su PVP mínimo, si el proveedor lo pone) y el panel calcula lo que suma al precio; escribe «+ Venta» solo para fijarlo a mano. Si no cambia el precio, déjalo en 0.</p>' +
+        '<div id="p-grupos"></div>' +
+        (S.escribir ? '<div class="p-acc"><button type="button" class="btn" id="p-grupo-add">+ Grupo</button><span id="p-tipicos" class="p-tipicos"></span></div>' : '') +
+      '</div>';
+    const precioDinero = (v) => (v === '' || v == null || v === 0 ? '' : String(v).replace('.', ','));
     abrirHoja({
       titulo: nuevo ? 'Nuevo producto' : p.nombre, campos, valores: Object.assign({}, p, { iva: String(p.iva ?? 21) }), extra,
       alMontar(form) {
-        const pvp = () => { const pr = num(form.elements.precio.value), iv = Number(form.elements.iva.value); $('p-pvp').textContent = pr ? 'Con IVA: ' + euros(Math.round(pr * (1 + iv / 100) * 100) / 100) : ''; };
-        form.elements.precio.addEventListener('input', pvp); form.elements.iva.addEventListener('change', pvp); pvp();
+        form.classList.add('hoja-prod');
+        const iva = () => Number(form.elements.iva.value);
+        const conIva = (n) => (n ? euros(Math.round(n * (1 + iva() / 100) * 100) / 100) : '');
+        // The product as it stands in the form, to price it with the escandallo while typing.
+        const actual = () => Object.assign({}, p, { iva: iva(), categoria: form.elements.categoria.value, costeConIva: form.elements.costeConIva.checked,
+          coste: num(form.elements.coste.value), pvpMin: num(form.elements.pvpMin.value), precio: 0 });
+        const auto = (v) => { const c = calculo(actual(), v ? Object.assign({}, v, { precio: 0 }) : null); return c.valido ? c.precio : 0; };
+        const pvp = () => {
+          if (variantes.length) { $('p-pvp').textContent = ''; return; }
+          const a = auto(null), manual = num(form.elements.precio.value);
+          form.elements.precio.placeholder = a ? String(a).replace('.', ',') : '0,00';
+          const pr = manual || a;
+          $('p-pvp').textContent = pr ? 'Con IVA: ' + conIva(pr) + (manual ? ' (puesto a mano)' : ' (calculado con el escandallo)') : '';
+        };
+        // Grey price in each size: what the escandallo gives; the VAT column shows the price that will be used.
+        const pintarAuto = (i) => {
+          const v = variantes[i], fila = $('p-vars').querySelector('[data-v="' + i + '"]'); if (!fila) return;
+          const a = auto(v);
+          fila.querySelector('[data-k="precio"]').placeholder = a ? String(a).replace('.', ',') : 'Venta';
+          fila.querySelector('[data-civa]').textContent = conIva(Number(v.precio) || a);
+        };
+        // With sizes, the single-price fields are hidden: each size carries its own.
+        const unico = ['medidas', 'precio', 'coste', 'pvpMin', 'peso', 'volumen'];
+        const sepUnico = Array.from(form.querySelectorAll('.separador')).find((s) => s.textContent.startsWith('Precio único'));
+        const ocultarCampo = (n, si) => { const c = form.elements[n].closest('.campo, .chk-linea'); if (c) c.hidden = si; };
+        const ajustarUnico = () => {
+          const ocultar = variantes.length > 0;
+          unico.forEach((n) => ocultarCampo(n, ocultar));
+          if (sepUnico) sepUnico.hidden = ocultar;
+          pvp();
+        };
+        const pintarVars = () => {
+          const caja = $('p-vars');
+          if (!variantes.length) { caja.innerHTML = '<div class="vacio" style="margin:6px 0">Sin medidas: se usa el precio único de arriba. Para colchones, canapés, somieres y cabezales, crea sus medidas.</div>'; ajustarUnico(); return; }
+          caja.innerHTML = '<div class="p-var p-var-cab"><span>Medida</span><span>Versión</span><span>Ref.</span><span>Coste</span><span>PVP mín.</span><span>Venta</span><span>Con IVA</span><span>Peso kg</span><span>Vol. m³</span><span></span></div>' +
+            variantes.map((v, i) => '<div class="p-var" data-v="' + i + '">' +
+              '<input data-k="medida" value="' + esc(v.medida || '') + '" placeholder="150×190" aria-label="Medida"' + ro + '>' +
+              '<input data-k="version" value="' + esc(v.version || '') + '" title="' + esc(v.version || '') + '" placeholder="—" aria-label="Versión"' + ro + '>' +
+              '<input data-k="ref" value="' + esc(v.ref || '') + '" placeholder="auto" title="Vacía: referencia del modelo + medida" aria-label="Referencia de la medida"' + ro + '>' +
+              '<input data-k="coste" inputmode="decimal" value="' + esc(precioDinero(v.coste)) + '" placeholder="Coste" aria-label="Coste de compra"' + ro + '>' +
+              '<input data-k="pvpMin" inputmode="decimal" value="' + esc(precioDinero(v.pvpMin)) + '" placeholder="—" aria-label="PVP mínimo del proveedor, con IVA"' + ro + '>' +
+              '<input data-k="precio" inputmode="decimal" value="' + esc(precioDinero(v.precio)) + '" placeholder="Venta" aria-label="Precio de venta sin IVA"' + ro + '>' +
+              '<span class="p-civa" data-civa="' + i + '"></span>' +
+              '<input data-k="peso" inputmode="decimal" value="' + esc(precioDinero(v.peso)) + '" placeholder="kg" aria-label="Peso en kg"' + ro + '>' +
+              '<input data-k="volumen" inputmode="decimal" value="' + esc(precioDinero(v.volumen)) + '" placeholder="m³" aria-label="Volumen en m³"' + ro + '>' +
+              (S.escribir ? '<button type="button" class="p-x" data-quita-v="' + i + '" aria-label="Quitar medida">×</button>' : '<span></span>') + '</div>').join('');
+          variantes.forEach((v, i) => pintarAuto(i));
+          ajustarUnico();
+        };
+        const pintarGrupos = () => {
+          $('p-grupos').innerHTML = grupos.length ? grupos.map((g, gi) => '<div class="p-grupo" data-g="' + gi + '">' +
+            '<div class="p-grupo-cab"><input data-gk="nombre" value="' + esc(g.nombre || '') + '" placeholder="Nombre del grupo (ej.: Tapizado)" aria-label="Nombre del grupo"' + ro + '>' +
+              '<select data-gk="obligatoria" aria-label="Cómo se elige"' + ro + '><option value="1"' + (g.obligatoria !== false ? ' selected' : '') + '>Hay que elegir una</option><option value="0"' + (g.obligatoria === false ? ' selected' : '') + '>Opcional (extra)</option></select>' +
+              (S.escribir ? '<button type="button" class="mini" data-quita-g="' + gi + '">Quitar grupo</button>' : '') + '</div>' +
+            '<div class="p-val p-val-cab"><span>Opción</span><span>+ Coste</span><span>+ PVP mín.</span><span>+ Venta</span><span></span></div>' +
+            (g.valores || []).map((x, xi) => '<div class="p-val" data-x="' + xi + '"><input data-xk="nombre" value="' + esc(x.nombre || '') + '" placeholder="Ej.: Serie 2" aria-label="Opción"' + ro + '>' +
+              '<input data-xk="coste" inputmode="decimal" value="' + esc(precioDinero(x.coste)) + '" placeholder="0" aria-label="Suma al coste"' + ro + '>' +
+              '<input data-xk="pvpMin" inputmode="decimal" value="' + esc(precioDinero(x.pvpMin)) + '" placeholder="—" aria-label="Suma al PVP mínimo del proveedor, con IVA"' + ro + '>' +
+              '<input data-xk="precio" inputmode="decimal" value="' + esc(precioDinero(x.precio)) + '" placeholder="' + esc(String(precioOpcion(actual(), Object.assign({}, x, { precio: 0 })) || 0).replace('.', ',')) + '" aria-label="Suma al precio de venta"' + ro + '>' +
+              (S.escribir ? '<button type="button" class="p-x" data-quita-x="' + xi + '" aria-label="Quitar opción">×</button>' : '<span></span>') + '</div>').join('') +
+            (S.escribir ? '<button type="button" class="mini" data-anade-x="' + gi + '">+ Opción</button>' : '') + '</div>').join('')
+            : '<div class="vacio" style="margin:6px 0">Sin acabados ni extras.</div>';
+          if ($('p-tipicos')) {
+            const tip = (GRUPOS_TIPICOS[form.elements.categoria.value] || []).filter(([n]) => !grupos.some((g) => sinTildes(g.nombre) === sinTildes(n)));
+            $('p-tipicos').innerHTML = tip.length ? 'Añadir: ' + tip.map(([n]) => '<button type="button" class="mini" data-tipico="' + esc(n) + '">' + esc(n) + '</button>').join('') : '';
+          }
+        };
+        pintarVars(); pintarGrupos();
+        // Enter inside the size and finish tables must not save the whole product.
+        form.addEventListener('keydown', (e) => {
+          if (e.key !== 'Enter' || !e.target.closest('#p-vars, #p-grupos, .p-gen, .p-acc')) return;
+          e.preventDefault();
+          if (e.target.closest('.p-gen') && $('p-gen')) $('p-gen').click();
+        });
+        ['precio', 'coste', 'pvpMin'].forEach((n) => form.elements[n].addEventListener('input', pvp));
+        form.elements.costeConIva.addEventListener('change', () => { pintarVars(); pintarGrupos(); });
+        form.elements.iva.addEventListener('change', pintarVars);
+        form.elements.categoria.addEventListener('change', () => {
+          const t = MEDIDAS_TIPICAS[form.elements.categoria.value];
+          if (t && $('p-anchos')) { $('p-anchos').value = t[0]; $('p-largos').value = t[1]; }
+          pintarGrupos(); pintarVars();
+        });
+
+        $('p-vars').addEventListener('input', (e) => {
+          const fila = e.target.closest('[data-v]'), k = e.target.dataset.k; if (!fila || !k) return;
+          const i = Number(fila.dataset.v);
+          variantes[i][k] = ['coste', 'pvpMin', 'precio', 'peso', 'volumen'].includes(k) ? num(e.target.value) : e.target.value.trim();
+          if (k === 'precio' || k === 'coste' || k === 'pvpMin') pintarAuto(i);
+        });
+        $('p-vars').addEventListener('click', (e) => { const b = e.target.closest('[data-quita-v]'); if (b) { variantes.splice(Number(b.dataset.quitaV), 1); pintarVars(); } });
+        if ($('p-gen')) $('p-gen').onclick = () => {
+          const anchos = numeros($('p-anchos').value), largos = numeros($('p-largos').value), version = $('p-version').value.trim();
+          if (!anchos.length) { aviso('Escribe al menos un ancho.'); $('p-anchos').focus(); return; }
+          let nuevas = 0;
+          anchos.forEach((a) => (largos.length ? largos : ['']).forEach((l) => {
+            const medida = l ? a + '×' + l : a + ' cm';
+            if (variantes.some((v) => v.medida === medida && (v.version || '') === version)) return;
+            variantes.push({ id: nuevoId(), medida, version, ref: '', coste: 0, pvpMin: 0, precio: 0, peso: 0, volumen: 0 }); nuevas++;
+          }));
+          variantes.sort(ordenVariantes); pintarVars();
+          aviso(nuevas ? 'Creadas ' + nuevas + (nuevas === 1 ? ' medida' : ' medidas') + '. Rellena su coste: el precio lo calcula el escandallo.' : 'Esas medidas ya estaban.');
+        };
+        if ($('p-var-add')) $('p-var-add').onclick = () => {
+          variantes.push({ id: nuevoId(), medida: '', version: '', ref: '', coste: 0, pvpMin: 0, precio: 0, peso: 0, volumen: 0 }); pintarVars();
+          const f = $('p-vars').querySelector('.p-var:last-child [data-k="medida"]'); if (f) f.focus();
+        };
+
+        $('p-grupos').addEventListener('input', (e) => {
+          const gEl = e.target.closest('[data-g]'); if (!gEl) return;
+          const g = grupos[Number(gEl.dataset.g)];
+          if (e.target.dataset.gk === 'nombre') g.nombre = e.target.value.trim();
+          const xEl = e.target.closest('[data-x]'), xk = e.target.dataset.xk;
+          if (xEl && xk) g.valores[Number(xEl.dataset.x)][xk] = xk === 'nombre' ? e.target.value.trim() : num(e.target.value);
+        });
+        $('p-grupos').addEventListener('change', (e) => {
+          const gEl = e.target.closest('[data-g]');
+          if (gEl && e.target.dataset.gk === 'obligatoria') grupos[Number(gEl.dataset.g)].obligatoria = e.target.value === '1';
+        });
+        $('p-grupos').addEventListener('click', (e) => {
+          const b = e.target.closest('button'); if (!b) return;
+          const gEl = b.closest('[data-g]'); const g = gEl && grupos[Number(gEl.dataset.g)];
+          if (b.dataset.quitaG != null) grupos.splice(Number(b.dataset.quitaG), 1);
+          else if (b.dataset.quitaX != null) g.valores.splice(Number(b.dataset.quitaX), 1);
+          else if (b.dataset.anadeX != null) g.valores.push({ id: nuevoId(), nombre: '', coste: 0, precio: 0 });
+          else return;
+          pintarGrupos();
+          if (b.dataset.anadeX != null) { const f = $('p-grupos').querySelector('[data-g="' + b.dataset.anadeX + '"] .p-val:last-of-type [data-xk="nombre"]'); if (f) f.focus(); }
+        });
+        if ($('p-grupo-add')) $('p-grupo-add').onclick = () => {
+          grupos.push({ id: nuevoId(), nombre: '', obligatoria: true, valores: [{ id: nuevoId(), nombre: '', coste: 0, precio: 0 }] }); pintarGrupos();
+          const f = $('p-grupos').querySelector('.p-grupo:last-child [data-gk="nombre"]'); if (f) f.focus();
+        };
+        if ($('p-tipicos')) $('p-tipicos').addEventListener('click', (e) => {
+          const b = e.target.closest('[data-tipico]'); if (!b) return;
+          const t = (GRUPOS_TIPICOS[form.elements.categoria.value] || []).find(([n]) => n === b.dataset.tipico); if (!t) return;
+          grupos.push({ id: nuevoId(), nombre: t[0], obligatoria: t[1], valores: t[2].map((n) => ({ id: nuevoId(), nombre: n, coste: 0, precio: 0 })) }); pintarGrupos();
+        });
+
         const pintar = () => { $('p-foto').innerHTML = foto ? '<img src="' + esc(foto) + '" alt="">' : '<span>Sin foto</span>'; if ($('p-foto-quitar')) $('p-foto-quitar').hidden = !foto; };
         if ($('p-foto-in')) $('p-foto-in').addEventListener('change', async (e) => {
           const f = e.target.files[0]; if (!f) return;
@@ -189,15 +401,236 @@ export function crearGestion(x) {
         if ($('p-foto-quitar')) $('p-foto-quitar').onclick = () => { foto = ''; pintar(); };
       },
       alGuardar(d) {
-        ['sep1', 'sep2'].forEach((k) => delete d[k]);
+        delete d.sepU; delete d.sepC;
         const repetida = S.productos.find((o) => o.id !== p.id && sinTildes(o.ref) === sinTildes(d.ref));
         if (repetida) { aviso('La referencia ' + d.ref + ' ya es de «' + repetida.nombre + '».'); return false; }
-        const cuerpo = Object.assign(d, { foto, actualizado: new Date().toISOString() });
+        const vs = variantes.filter((v) => v.medida || v.version || v.precio || v.coste)
+          .map((v) => ({ id: v.id || nuevoId(), medida: String(v.medida || '').trim(), version: String(v.version || '').trim(), ref: String(v.ref || '').trim(),
+            coste: Number(v.coste) || 0, pvpMin: Number(v.pvpMin) || 0, precio: Number(v.precio) || 0, peso: Number(v.peso) || 0, volumen: Number(v.volumen) || 0 }));
+        const sinMedida = vs.find((v) => !v.medida);
+        if (sinMedida) { aviso('Hay una fila de medidas sin la medida escrita.'); return false; }
+        const claves = new Set();
+        for (const v of vs) {
+          const k = sinTildes(v.medida.replace(/\s/g, '').replace('x', '×') + '|' + v.version);
+          if (claves.has(k)) { aviso('La medida ' + nombreVariante(v) + ' está repetida.'); return false; }
+          claves.add(k);
+        }
+        vs.sort(ordenVariantes);
+        const gs = grupos.map((g) => ({ id: g.id || nuevoId(), nombre: String(g.nombre || '').trim(), obligatoria: g.obligatoria !== false,
+          valores: (g.valores || []).filter((x) => String(x.nombre || '').trim()).map((x) => ({ id: x.id || nuevoId(), nombre: String(x.nombre).trim(), coste: Number(x.coste) || 0, pvpMin: Number(x.pvpMin) || 0, precio: Number(x.precio) || 0 })) }))
+          .filter((g) => g.nombre || g.valores.length);
+        const grupoMal = gs.find((g) => !g.nombre || !g.valores.length);
+        if (grupoMal) { aviso(grupoMal.nombre ? 'El grupo «' + grupoMal.nombre + '» no tiene opciones.' : 'Hay un grupo de acabados sin nombre.'); return false; }
+        const tieneCoste = (x) => Number(x.coste) > 0;
+        if (!vs.length && !d.precio && !tieneCoste(d)) { aviso('Falta el coste (el escandallo calcula el precio), un precio a mano, o crear las medidas.'); return false; }
+        if (vs.length) {
+          // Summary fields kept for lists and older documents: lowest price and cost, and the list of sizes.
+          d.precio = 0; d.coste = 0; d.pvpMin = 0; d.peso = 0; d.volumen = 0;
+          d.medidas = [...new Set(vs.map((v) => v.medida))].join(', ').slice(0, 300);
+          const sinPrecio = vs.filter((v) => !v.precio && !tieneCoste(v)).length;
+          if (sinPrecio) aviso(sinPrecio + (sinPrecio === 1 ? ' medida no tiene' : ' medidas no tienen') + ' coste ni precio: saldrán a 0 € en los documentos hasta que lo pongas.');
+        }
+        const cuerpo = Object.assign(d, { variantes: vs, opciones: gs, foto, actualizado: new Date().toISOString() });
         if (nuevo) return escribir(() => col('productos').add(Object.assign(cuerpo, { creado: cuerpo.actualizado, creadoPor: S.yo })), 'Producto añadido', 'añadió el producto «' + d.nombre + '»');
         return escribir(() => col('productos').doc(p.id).update(cuerpo), 'Producto guardado', 'editó el producto «' + d.nombre + '»');
       },
       alBorrar: nuevo ? null : () => escribir(() => col('productos').doc(p.id).delete(), 'Producto eliminado', 'borró el producto «' + p.nombre + '»')
     });
+  }
+
+  /* ---------- Escandallos ---------- */
+  // Each category has its escandallo (costs on top of the purchase, margin and rounding); a product can have its own.
+  // The selling price of every size comes from it unless someone fixes a price by hand.
+  const nombreRedondeo = (k) => (REDONDEOS.find((x) => x[0] === k) || REDONDEOS[0])[1];
+  const sumaTipo = (e, t) => (e.lineas || []).filter((l) => l.tipo === t).reduce((a, l) => a + (Number(l.valor) || 0), 0);
+  const resumenEsc = (e) => [sumaTipo(e, 'fijo') ? euros(sumaTipo(e, 'fijo')) + ' por unidad' : '', sumaTipo(e, 'compra') ? fPct(sumaTipo(e, 'compra')) + ' de la compra' : '',
+    sumaTipo(e, 'venta') ? fPct(sumaTipo(e, 'venta')) + ' de la venta' : '', 'margen ' + fPct(Number(e.margen) || 0)].filter(Boolean).join(' · ');
+  const CATS_ESC = CATEGORIAS.filter((c) => c !== 'Servicios');
+  const claseMargen = (c) => (!c.valido ? '' : c.beneficio < 0 ? 'malo' : c.margen < 10 ? 'justo' : 'bien');
+
+  // One row per size (or one row for a product without sizes): purchase, other costs, total, price and what is left.
+  function tablaEscandallo(p, e) {
+    const vs = variantesDe(p);
+    const filas = (vs.length ? vs : [null]).map((v) => {
+      const x = v || p, c = calculo(p, v, e);
+      const nombre = v ? nombreVariante(v) : p.medidas || 'Precio único';
+      if (!c.valido) return '<tr><td>' + esc(nombre) + '</td><td colspan="7" class="e-nd">' + esc(c.motivo) + '</td></tr>';
+      const marca = c.aMano ? '<span class="pill">a mano</span>' : c.subido ? '<span class="pill azul" title="El escandallo daba menos: se ha subido al PVP mínimo del proveedor">PVP mín.</span>' : '';
+      return '<tr><td>' + esc(nombre) + '</td><td class="num">' + euros(c.coste) + '</td><td class="num">' + euros(c.costeTotal - c.coste) + '</td><td class="num">' + euros(c.costeTotal) + '</td>' +
+        '<td class="num"><b>' + euros(c.precio) + '</b></td><td class="num">' + euros(c.conIva) + (c.bajoMinimo ? ' <span class="pill bad" title="Por debajo del PVP mínimo del proveedor (' + esc(euros(c.minimo)) + ')">bajo mín.</span>' : '') + '</td>' +
+        '<td class="num e-' + claseMargen(c) + '">' + euros(c.beneficio) + '</td><td class="num e-' + claseMargen(c) + '">' + fPct(c.margen) + '</td><td>' + marca + '</td></tr>';
+    }).join('');
+    return '<div class="tabla-wrap"><table class="mov e-tabla"><thead><tr><th>Medida</th><th class="num">Compra</th><th class="num">Otros costes</th><th class="num">Coste total</th><th class="num">Venta sin IVA</th><th class="num">Con IVA</th><th class="num">Beneficio</th><th class="num">Margen</th><th></th></tr></thead><tbody>' + filas + '</tbody></table></div>';
+  }
+
+  function vistaEscandallos() {
+    const G = S.gestion, pl = plantillas();
+    if (!S.listo.productos) return '<div class="vacio">Cargando productos…</div>';
+    let html = '<p class="p-ayuda" style="max-width:880px;margin-top:10px">El escandallo pasa del coste de compra al precio de venta: suma lo que cuesta además el producto (transporte, envío, embalaje, comisiones, publicidad, devoluciones), deja el margen que queráis, añade el IVA y redondea. Nunca baja del PVP mínimo del proveedor. Ese precio es el que entra solo en presupuestos y pedidos; allí se puede cambiar a mano o aplicar un descuento comercial. Todo en € sin IVA salvo «Con IVA».</p>' +
+      '<h2 class="e-h2">Escandallo de cada categoría</h2><div class="rejilla-cards e-cats">' + CATS_ESC.map((c) => {
+        const e = pl[c], n = S.productos.filter((p) => p.categoria === c).length, propios = S.productos.filter((p) => p.categoria === c && p.escandallo && p.escandallo.propio).length;
+        return '<article class="card"><h3>' + esc(c) + '</h3><div class="linea">' + (e ? esc(resumenEsc(e)) : '<span class="pill warn">Sin hacer</span> se usa margen del 30 % y nada más') + '</div>' +
+          '<div class="linea">Redondeo: ' + esc(nombreRedondeo((e || ESCANDALLO_BASE).redondeo)) + '</div>' +
+          '<div class="pie"><span>' + n + (n === 1 ? ' producto' : ' productos') + (propios ? ' · ' + propios + ' con escandallo propio' : '') + '</span><span class="der"><button class="mini" type="button" data-esc-cat="' + esc(c) + '">' + (S.escribir ? 'Editar' : 'Ver') + '</button></span></div></article>';
+      }).join('') + '</div>';
+    const cats = ['todas'].concat(CATEGORIAS.filter((c) => S.productos.some((p) => p.categoria === c)));
+    const q = sinTildes(G.buscar);
+    const lista = S.productos.filter((p) => p.activo !== false).filter((p) => G.categoria === 'todas' || p.categoria === G.categoria)
+      .filter((p) => !q || sinTildes(textoBusqueda(p)).includes(q))
+      .sort((a, b) => (a.categoria || '').localeCompare(b.categoria || '') || (a.nombre || '').localeCompare(b.nombre || '', 'es'));
+    html += '<h2 class="e-h2">Escandallo de cada producto</h2><div class="filtros">' + cats.map((c) => '<button class="chip" type="button" data-gcat="' + esc(c) + '" aria-pressed="' + (G.categoria === c) + '">' + esc(c === 'todas' ? 'Todas' : c) + '</button>').join('') + buscador('Buscar producto o medida') + '</div>';
+    if (!S.productos.length) return html + '<div class="vacio">Todavía no hay productos. Cárgalos en Productos → «Cargar la tarifa de Azorín» o dalos de alta uno a uno.</div>';
+    if (!lista.length) return html + '<div class="vacio">Ningún producto con este filtro.</div>';
+    // Long lists are cut so the page stays light; the search narrows them down.
+    const max = 12, vistos = lista.slice(0, max);
+    return html + vistos.map((p) => {
+      const propio = p.escandallo && p.escandallo.propio;
+      return '<section class="card e-prod"><div class="e-prod-cab"><div><h3>' + esc(p.nombre) + '</h3><div class="linea"><span>' + esc(p.ref) + '</span><span class="pill">' + esc(p.categoria || '') + '</span>' +
+        '<span class="pill ' + (propio ? 'azul' : '') + '">' + (propio ? 'Escandallo propio' : 'Escandallo de ' + esc(p.categoria || 'la categoría')) + '</span>' + (p.costeConIva ? '<span class="pill">Coste con IVA</span>' : '') + '</div></div>' +
+        '<span class="der"><button class="mini" type="button" data-esc-prod="' + esc(p.id) + '">' + (S.escribir ? 'Editar escandallo' : 'Ver escandallo') + '</button><button class="mini" type="button" data-abrir="productos:' + esc(p.id) + '">Ficha</button></span></div>' +
+        tablaEscandallo(p) + '</section>';
+    }).join('') + (lista.length > max ? '<div class="vacio">Se ven ' + max + ' de ' + lista.length + ' productos. Busca o filtra por categoría para ver el resto.</div>' : '');
+  }
+
+  // Editor of the cost lines of an escandallo, inside a form. lineas is changed in place.
+  function editorLineas(lineas, caja, alCambiar) {
+    const ro = S.escribir ? '' : ' disabled';
+    const pintar = () => {
+      caja.innerHTML = '<div class="e-lin e-lin-cab"><span>Concepto</span><span>Cómo se cuenta</span><span>Valor</span><span></span></div>' + lineas.map((l, i) => '<div class="e-lin" data-l="' + i + '">' +
+        '<input data-lk="concepto" value="' + esc(l.concepto || '') + '" placeholder="Ej.: Envío al cliente" aria-label="Concepto"' + ro + '>' +
+        '<select data-lk="tipo" aria-label="Cómo se cuenta"' + ro + '>' + TIPOS_COSTE.map(([k, n]) => '<option value="' + k + '"' + (l.tipo === k ? ' selected' : '') + '>' + n + '</option>').join('') + '</select>' +
+        '<input data-lk="valor" inputmode="decimal" value="' + esc(l.valor ? String(l.valor).replace('.', ',') : '') + '" placeholder="0" aria-label="Valor"' + ro + '>' +
+        (S.escribir ? '<button type="button" class="p-x" data-quita-l="' + i + '" aria-label="Quitar concepto">×</button>' : '<span></span>') + '</div>').join('') +
+        (S.escribir ? '<button type="button" class="mini" data-anade-l>+ Concepto</button>' : '');
+    };
+    caja.addEventListener('input', (e) => {
+      const f = e.target.closest('[data-l]'), k = e.target.dataset.lk; if (!f || !k) return;
+      lineas[Number(f.dataset.l)][k] = k === 'valor' ? num(e.target.value) : e.target.value.trim(); alCambiar();
+    });
+    caja.addEventListener('change', (e) => { const f = e.target.closest('[data-l]'); if (f && e.target.dataset.lk === 'tipo') { lineas[Number(f.dataset.l)].tipo = e.target.value; alCambiar(); } });
+    caja.addEventListener('click', (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.quitaL != null) lineas.splice(Number(b.dataset.quitaL), 1);
+      else if (b.dataset.anadeL != null) lineas.push({ concepto: '', tipo: 'fijo', valor: 0 });
+      else return;
+      pintar(); alCambiar();
+      if (b.dataset.anadeL != null) { const x = caja.querySelector('.e-lin:last-of-type [data-lk="concepto"]'); if (x) x.focus(); }
+    });
+    pintar();
+    return { pintar };
+  }
+  const limpiarLineas = (lineas) => lineas.filter((l) => String(l.concepto || '').trim() || Number(l.valor))
+    .map((l) => ({ concepto: String(l.concepto || '').trim() || 'Sin nombre', tipo: TIPOS_COSTE.some(([k]) => k === l.tipo) ? l.tipo : 'fijo', valor: Number(l.valor) || 0 }));
+  const sinHueco = (e) => 1 - sumaTipo(e, 'venta') / 100 - (Number(e.margen) || 0) / 100 <= 0.01;
+
+  function formEscCategoria(cat) {
+    const e = JSON.parse(JSON.stringify(plantillas()[cat] || ESCANDALLO_BASE));
+    const campos = [
+      { n: 'margen', l: 'Margen de beneficio, % sobre el precio de venta sin IVA', t: 'dinero' },
+      { n: 'redondeo', l: 'Redondeo del precio con IVA', t: 'select', op: REDONDEOS }
+    ];
+    const extra = '<div class="separador">Costes además de la compra (por cada unidad vendida)</div>' +
+      '<div class="campo ancho"><p class="p-ayuda">«€ por unidad»: transporte, envío al cliente, embalaje, montaje… «% de la venta»: comisión de cobro, publicidad, devoluciones y garantía. «% de la compra»: mermas o seguros que van con el coste.</p><div id="e-lineas"></div></div>' +
+      '<div class="campo ancho"><div class="e-ejemplo" id="e-ejemplo"></div></div>';
+    abrirHoja({
+      titulo: 'Escandallo · ' + cat, campos, valores: { margen: e.margen, redondeo: e.redondeo || '9' }, extra,
+      alMontar(form) {
+        form.classList.add('hoja-prod');
+        const ejemplo = () => {
+          const ee = Object.assign({}, e, { margen: num(form.elements.margen.value), redondeo: form.elements.redondeo.value });
+          const prod = S.productos.find((p) => p.categoria === cat && !(p.escandallo && p.escandallo.propio) && variantesDe(p).length);
+          let html = '<b>Así queda</b>';
+          if (sinHueco(ee)) html += '<p class="e-nd">Los % sobre la venta y el margen suman 100 % o más: no hay precio posible.</p>';
+          else if (prod) html += '<p>' + esc(prod.nombre) + ':</p>' + tablaEscandallo(prod, ee);
+          else {
+            const c = desglose(100, ee, { iva: 21 });
+            html += '<p>Con un coste de compra de 100 € sin IVA: coste total ' + euros(c.costeTotal) + ', venta ' + euros(c.precio) + ' sin IVA (' + euros(c.conIva) + ' con IVA), beneficio ' + euros(c.beneficio) + ' (' + fPct(c.margen) + ').</p>';
+          }
+          $('e-ejemplo').innerHTML = html;
+        };
+        editorLineas(e.lineas, $('e-lineas'), ejemplo);
+        form.elements.margen.addEventListener('input', ejemplo); form.elements.redondeo.addEventListener('change', ejemplo);
+        ejemplo();
+      },
+      alGuardar(d) {
+        const nuevo = { lineas: limpiarLineas(e.lineas), margen: Number(d.margen) || 0, redondeo: d.redondeo };
+        if (sinHueco(nuevo)) { aviso('Los % sobre la venta y el margen suman 100 % o más: bájalos.'); return false; }
+        const todas = Object.assign({}, plantillas(), { [cat]: nuevo });
+        return escribir(() => col('ajustes').doc('escandallos').set({ categorias: todas, actualizado: new Date().toISOString() }), 'Escandallo guardado', 'cambió el escandallo de ' + cat);
+      }
+    });
+  }
+
+  function formEscProducto(p) {
+    const propioAntes = !!(p.escandallo && p.escandallo.propio);
+    const e = JSON.parse(JSON.stringify(propioAntes ? p.escandallo : escandalloDe(p, plantillas())));
+    const manuales = variantesDe(p).filter((v) => Number(v.precio)).length + (variantesDe(p).length ? 0 : Number(p.precio) ? 1 : 0);
+    const campos = [
+      { n: 'usar', l: 'Escandallo', t: 'select', op: [['cat', 'El de su categoría (' + (p.categoria || '—') + ')'], ['propio', 'Uno propio para este producto']] },
+      { n: 'costeConIva', l: 'Sus costes de compra llevan el IVA incluido (como la tarifa de Azorín)', t: 'check' },
+      { n: 'margen', l: 'Margen de beneficio, % sobre el precio de venta sin IVA', t: 'dinero' },
+      { n: 'redondeo', l: 'Redondeo del precio con IVA', t: 'select', op: REDONDEOS }
+    ].concat(manuales ? [{ n: 'quitarManuales', l: 'Quitar los ' + manuales + (manuales === 1 ? ' precio puesto' : ' precios puestos') + ' a mano y usar el escandallo en todo', t: 'check' }] : []);
+    const extra = '<div class="campo ancho" id="e-propio"><span class="lbl">Costes además de la compra</span><div id="e-lineas"></div></div>' +
+      '<div class="campo ancho"><div class="e-ejemplo" id="e-ejemplo"></div></div>';
+    abrirHoja({
+      titulo: 'Escandallo · ' + p.nombre, campos, valores: { usar: propioAntes ? 'propio' : 'cat', costeConIva: !!p.costeConIva, margen: e.margen, redondeo: e.redondeo || '9' }, extra,
+      alMontar(form) {
+        form.classList.add('hoja-prod');
+        const propio = () => form.elements.usar.value === 'propio';
+        const actual = () => {
+          const prod = Object.assign({}, p, { costeConIva: form.elements.costeConIva.checked });
+          if (form.elements.quitarManuales && form.elements.quitarManuales.checked) { prod.variantes = variantesDe(p).map((v) => Object.assign({}, v, { precio: 0 })); prod.precio = 0; }
+          return prod;
+        };
+        const esc2 = () => (propio() ? Object.assign({}, e, { margen: num(form.elements.margen.value), redondeo: form.elements.redondeo.value }) : escandalloDe(Object.assign({}, p, { escandallo: null }), plantillas()));
+        const previa = () => {
+          ['margen', 'redondeo'].forEach((n) => { form.elements[n].closest('.campo').hidden = !propio(); });
+          $('e-propio').hidden = !propio();
+          const ee = esc2();
+          $('e-ejemplo').innerHTML = '<b>Así queda</b>' + (propio() ? '' : '<p>' + esc(resumenEsc(ee)) + ' · redondeo: ' + esc(nombreRedondeo(ee.redondeo).toLowerCase()) + '</p>') +
+            (sinHueco(ee) ? '<p class="e-nd">Los % sobre la venta y el margen suman 100 % o más.</p>' : tablaEscandallo(actual(), ee));
+        };
+        editorLineas(e.lineas, $('e-lineas'), previa);
+        form.addEventListener('input', previa); form.addEventListener('change', previa);
+        previa();
+      },
+      alGuardar(d) {
+        const cambio = { costeConIva: !!d.costeConIva, actualizado: new Date().toISOString() };
+        if (d.usar === 'propio') {
+          cambio.escandallo = { propio: true, lineas: limpiarLineas(e.lineas), margen: Number(d.margen) || 0, redondeo: d.redondeo };
+          if (sinHueco(cambio.escandallo)) { aviso('Los % sobre la venta y el margen suman 100 % o más: bájalos.'); return false; }
+        } else cambio.escandallo = { propio: false };
+        if (d.quitarManuales) {
+          if (variantesDe(p).length) cambio.variantes = (p.variantes || []).map((v) => Object.assign({}, v, { precio: 0 }));
+          else cambio.precio = 0;
+        }
+        return escribir(() => col('productos').doc(p.id).update(cambio), 'Escandallo guardado', 'cambió el escandallo de «' + p.nombre + '»');
+      }
+    });
+  }
+
+  /* ---------- Cargar la tarifa de Azorín ---------- */
+  // Creates the products of the Azorín 26/27 tariff that are not in the catalogue yet (same reference = already there).
+  async function cargarAzorin() {
+    if (!S.escribir) return;
+    const faltan = TARIFA_AZORIN.filter((t) => !S.productos.some((p) => sinTildes(p.ref) === sinTildes(t.ref)));
+    if (!faltan.length) { aviso('Ya están todos los productos de la tarifa de Azorín.'); return; }
+    const porCat = CATEGORIAS.map((c) => [c, faltan.filter((t) => t.categoria === c).length]).filter(([, n]) => n).map(([c, n]) => n + ' ' + c.toLowerCase()).join(', ');
+    if (!confirm('Se van a crear ' + faltan.length + ' productos de la tarifa de Azorín 26/27 (' + porCat + '), con su coste con IVA, su PVP mínimo y sus acabados. ' +
+      'Los que ya tengáis con la misma referencia no se tocan. El precio de venta lo pondrá el escandallo de cada categoría. ¿Seguir?')) return;
+    const ahora = new Date().toISOString();
+    await escribir(async () => {
+      for (let i = 0; i < faltan.length; i += 20) {
+        await Promise.all(faltan.slice(i, i + 20).map((t) => {
+          const vs = (t.variantes || []).map((v) => Object.assign({ id: nuevoId(), ref: '', precio: 0, peso: 0, volumen: 0 }, v)).sort((x, y) => motorUltimo(x) - motorUltimo(y));
+          const prod = Object.assign({ iva: 21, activo: true, bultos: 1, proveedor: 'Azorín Descanso', costeConIva: true, foto: '', precio: 0, coste: 0, pvpMin: 0, peso: 0, volumen: 0, medidas: '' }, t, {
+            variantes: vs, opciones: (t.opciones || []).map((g) => Object.assign({ id: nuevoId() }, g, { valores: g.valores.map((x) => Object.assign({ id: nuevoId(), precio: 0 }, x)) })),
+            medidas: vs.length ? [...new Set(vs.map((v) => v.medida))].join(', ').slice(0, 300) : t.medidas || '', creado: ahora, actualizado: ahora, creadoPor: S.yo });
+          return col('productos').doc(nuevoId()).set(prod);
+        }));
+      }
+    }, faltan.length + ' productos de Azorín cargados', 'cargó ' + faltan.length + ' productos de la tarifa de Azorín');
   }
 
   /* ---------- Cliente ---------- */
@@ -282,18 +715,27 @@ export function crearGestion(x) {
   }
 
   // In a purchase order the line takes the purchase cost, not the selling price.
-  function lineaDeProducto(p, compra) {
-    return { productoId: p.id, ref: p.ref || '', descripcion: p.nombre || '', detalle: [p.medidas ? 'Medidas: ' + p.medidas : '', p.detalle || ''].filter(Boolean).join('\n'),
-      cantidad: 1, precio: Number(compra ? p.coste : p.precio) || 0, dto1: 0, dto2: 0, iva: Number(p.iva ?? 21) };
+  // v is the chosen size (if the product has sizes) and elegidos the chosen finishes: [[grupo, valor], …].
+  function lineaDeProducto(p, compra, v, elegidos = [], cantidad = 1) {
+    let precio = compra ? costeDe(p, v || p) : precioDe(p, v);
+    let coste = costeDe(p, v || p);
+    const acabados = elegidos.map(([g, x]) => { precio += compra ? costeDe(p, x) : precioOpcion(p, x); coste += costeDe(p, x); return g.nombre + ': ' + x.nombre; });
+    const ref = v ? v.ref || [p.ref, String(v.medida || '').replace(/\D+/g, '')].filter(Boolean).join('-') : p.ref || '';
+    precio = Math.round(precio * 100) / 100;
+    // precioCatalogo and coste stay in the document but are never printed: they flag a hand-changed price and give the margin.
+    return { productoId: p.id, varianteId: v ? v.id : '', ref, descripcion: (p.nombre || '') + (v ? ' ' + v.medida : ''),
+      detalle: [v ? v.version : p.medidas ? 'Medidas: ' + p.medidas : ''].concat(acabados, [p.detalle || '']).filter(Boolean).join('\n'),
+      cantidad, precio, precioCatalogo: precio, coste: Math.round(coste * 100) / 100, dto1: 0, dto2: 0, iva: Number(p.iva ?? 21) };
   }
 
-  // Bultos, peso y volumen sumados de los productos del catálogo.
+  // Bultos, peso y volumen sumados de los productos del catálogo (de la medida elegida si la tiene).
   function logisticaDe(lineas) {
     let bultos = 0, peso = 0, volumen = 0, alguno = false;
     lineas.forEach((l) => {
       const p = l.productoId && producto(l.productoId); if (!p) return;
+      const v = l.varianteId && variantesDe(p).find((x) => x.id === l.varianteId);
       const n = Number(l.cantidad) || 0; alguno = true;
-      bultos += n * (Number(p.bultos) || (p.categoria === 'Servicios' ? 0 : 1)); peso += n * (Number(p.peso) || 0); volumen += n * (Number(p.volumen) || 0);
+      bultos += n * (Number(p.bultos) || (p.categoria === 'Servicios' ? 0 : 1)); peso += n * (Number((v || p).peso) || 0); volumen += n * (Number((v || p).volumen) || 0);
     });
     const r = (v) => Math.round(v * 100) / 100;
     return alguno ? { bultos: r(bultos) || '', pesoBruto: r(peso) || '', volumen: r(volumen) || '' } : {};
@@ -361,11 +803,12 @@ export function crearGestion(x) {
       '</div>' +
       '<div class="separador">Productos</div>' +
       (S.escribir ? '<div class="g-busca"><input type="search" id="d-buscar" autocomplete="off" placeholder="Busca por nombre, referencia o categoría y pulsa Intro" aria-label="Buscar producto">' +
-        '<button type="button" class="btn" id="d-libre">+ Línea libre</button><div class="g-resultados" id="d-resultados" hidden></div></div>' : '') +
+        '<button type="button" class="btn" id="d-libre">+ Línea libre</button><div class="g-resultados" id="d-resultados" hidden></div></div><div class="g-elegir" id="d-elegir" hidden></div>' : '') +
       '<div id="d-lineas" class="g-lineas"></div>' +
       '<div class="g-cierre"><div class="campos g-tres">' +
         campo('d-forma', 'Forma de pago', d.formaPago, ' maxlength="200"') +
         (tipo === 'pedido' ? campo('d-pagado', 'Pagado a cuenta (€)', decimal(d.pagado), ' inputmode="decimal"') : '') +
+        (S.escribir && !compra ? '<div class="campo"><label for="d-dtocom">Descuento comercial a todas las líneas (%)</label><div class="g-dtocom"><input id="d-dtocom" inputmode="decimal" placeholder="Ej.: 10"><button type="button" class="btn" id="d-dtocom-aplicar">Aplicar</button></div></div>' : '') +
         (tipo === 'albaran' ? '<label class="chk-linea campo"><input type="checkbox" id="d-valorado"' + (d.valorado ? ' checked' : '') + ro + '> Albarán con precios</label>' : '') +
         campo('d-bultos', 'Bultos', decimal(d.logistica.bultos), ' inputmode="decimal"') + campo('d-peso', 'Peso bruto (kg)', decimal(d.logistica.pesoBruto), ' inputmode="decimal"') +
         campo('d-pesoneto', 'Peso neto (kg)', decimal(d.logistica.pesoNeto), ' inputmode="decimal"') + campo('d-volumen', 'Volumen (m³)', decimal(d.logistica.volumen), ' inputmode="decimal"') +
@@ -382,7 +825,9 @@ export function crearGestion(x) {
     const v = (id) => ($(id) ? $(id).value.trim() : '');
     const cambiado = { valor: false };
 
-    // Líneas
+    // Líneas. A price changed by hand (different from the catalogue one) is marked, with the catalogue price on hover.
+    const cambiadoAMano = (l) => l.precioCatalogo != null && l.precioCatalogo !== '' && Math.abs((Number(l.precio) || 0) - Number(l.precioCatalogo)) > 0.004;
+    const marcaPrecio = (l) => (cambiadoAMano(l) ? ' class="g-cambiado" title="Cambiado a mano. Precio de catálogo: ' + esc(euros(l.precioCatalogo)) + '"' : '');
     function pintarLineas() {
       const caja = $('d-lineas');
       if (!d.lineas.length) { caja.innerHTML = '<div class="vacio" style="margin:6px 0">Sin productos. Búscalos arriba o añade una línea libre.</div>'; pintarTotales(); return; }
@@ -395,7 +840,7 @@ export function crearGestion(x) {
             '<input data-k="ref" value="' + esc(l.ref) + '" placeholder="Ref." aria-label="Referencia"' + ro + '>' +
             '<span class="g-desc"><input data-k="descripcion" value="' + esc(l.descripcion) + '" placeholder="Descripción" aria-label="Descripción"' + ro + '><textarea data-k="detalle" rows="2" placeholder="Características" aria-label="Características"' + ro + '>' + esc(l.detalle || '') + '</textarea></span>' +
             '<input data-k="cantidad" inputmode="decimal" value="' + esc(decimal(l.cantidad)) + '" placeholder="Cant." aria-label="Cantidad"' + ro + '>' +
-            '<input data-k="precio" inputmode="decimal" value="' + esc(decimal(l.precio)) + '" placeholder="Precio" aria-label="Precio sin IVA"' + ro + '>' +
+            '<input data-k="precio" inputmode="decimal" value="' + esc(decimal(l.precio)) + '" placeholder="Precio" aria-label="Precio sin IVA"' + marcaPrecio(l) + ro + '>' +
             '<input data-k="dto1" inputmode="decimal" value="' + esc(decimal(l.dto1 || '')) + '" placeholder="Dto. 1 %" aria-label="Descuento 1"' + ro + '>' +
             '<input data-k="dto2" inputmode="decimal" value="' + esc(decimal(l.dto2 || '')) + '" placeholder="Dto. 2 %" aria-label="Descuento 2"' + ro + '>' +
             '<select data-k="iva" aria-label="IVA"' + ro + '>' + [21, 10, 4, 0].map((t) => '<option value="' + t + '"' + (Number(l.iva ?? 21) === t ? ' selected' : '') + '>' + t + ' %</option>').join('') + '</select>' +
@@ -410,12 +855,24 @@ export function crearGestion(x) {
       c.lineas.forEach((l, i) => { const el = form.querySelector('[data-imp="' + i + '"]'); if (el) el.textContent = l.precio ? euros(l.importe) : 'Incluido'; });
       $('d-totales').innerHTML = '<div><span>Bruto</span><b>' + euros(c.bruto) + '</b></div>' + (c.descuento ? '<div><span>Descuentos</span><b>−' + euros(c.descuento) + '</b></div>' : '') +
         c.tramos.map((t) => '<div><span>Base ' + t.tipo + ' %</span><b>' + euros(t.base) + '</b></div><div><span>IVA ' + t.tipo + ' %</span><b>' + euros(t.cuota) + '</b></div>').join('') +
-        '<div class="g-total"><span>Total</span><b>' + euros(c.total) + '</b></div>' + (c.pagado ? '<div><span>Pendiente</span><b>' + euros(c.pendiente) + '</b></div>' : '');
+        '<div class="g-total"><span>Total</span><b>' + euros(c.total) + '</b></div>' + (c.pagado ? '<div><span>Pendiente</span><b>' + euros(c.pendiente) + '</b></div>' : '') + margenInterno(c);
+    }
+    // Internal only (never printed): what the lines cost us against what they are sold for, after discounts and without VAT.
+    function margenInterno(c) {
+      if (compra) return '';
+      const conCoste = d.lineas.map((l, i) => [l, c.lineas[i]]).filter(([l]) => Number(l.coste) > 0);
+      if (!conCoste.length) return '';
+      const venta = conCoste.reduce((a, [, x]) => a + (Number(x.importe) || 0), 0);
+      const coste = conCoste.reduce((a, [l]) => a + Number(l.coste) * (Number(l.cantidad) || 0), 0);
+      const m = venta - coste, pct = venta ? m / venta * 100 : 0;
+      return '<div class="g-margen' + (m < 0 ? ' malo' : pct < 15 ? ' justo' : '') + '"><span>Margen sobre la compra (no sale en el documento)</span><b>' + euros(m) + ' · ' + fPct(pct) + '</b>' +
+        '<small>Compra ' + euros(coste) + (conCoste.length < d.lineas.length ? ' · solo las líneas con coste' : '') + '. Sin restar envío, publicidad ni comisiones: eso está en el escandallo.</small></div>';
     }
     $('d-lineas').addEventListener('input', (e) => {
       const fila = e.target.closest('[data-i]'); const k = e.target.dataset.k; if (!fila || !k) return;
       const l = d.lineas[Number(fila.dataset.i)];
       l[k] = ['cantidad', 'precio', 'dto1', 'dto2', 'iva'].includes(k) ? num(e.target.value) : e.target.value;
+      if (k === 'precio') { e.target.classList.toggle('g-cambiado', cambiadoAMano(l)); e.target.title = cambiadoAMano(l) ? 'Cambiado a mano. Precio de catálogo: ' + euros(l.precioCatalogo) : ''; }
       cambiado.valor = true; pintarTotales();
     });
     $('d-lineas').addEventListener('change', (e) => { if (e.target.dataset.k === 'iva') { d.lineas[Number(e.target.closest('[data-i]').dataset.i)].iva = Number(e.target.value); pintarTotales(); } });
@@ -437,12 +894,62 @@ export function crearGestion(x) {
         const caja = $('d-resultados');
         caja.hidden = !q;
         caja.innerHTML = resultados.length ? resultados.map((p, i) => '<button type="button" class="g-res' + (i === marcado ? ' marcado' : '') + '" data-prod="' + esc(p.id) + '">' +
-          '<span class="g-mini-foto">' + (p.foto ? '<img src="' + esc(p.foto) + '" alt="">' : '') + '</span><span><b>' + esc(p.nombre) + '</b><small>' + esc([p.ref, p.medidas].filter(Boolean).join(' · ')) + '</small></span><span class="g-res-precio">' + (compra ? (p.coste ? euros(p.coste) + ' coste' : 'Sin coste') : euros(p.precio)) + '</span></button>').join('')
+          '<span class="g-mini-foto">' + (p.foto ? '<img src="' + esc(p.foto) + '" alt="">' : '') + '</span><span><b>' + esc(p.nombre) + '</b><small>' + esc([p.ref, variantesDe(p).length ? variantesDe(p).length + ' medidas' : p.medidas].filter(Boolean).join(' · ')) + '</small></span>' +
+          '<span class="g-res-precio">' + (variantesDe(p).length > 1 ? 'desde ' : '') + (compra ? (desde(p, true) ? euros(desde(p, true)) + ' coste' : 'Sin coste') : desde(p) ? euros(desde(p)) : 'Sin precio') + '</span></button>').join('')
           : '<div class="g-res-vacio">Ningún producto coincide. ' + (S.productos.length ? '' : 'El catálogo está vacío: da de alta productos en Gestión → Productos.') + '</div>';
       };
+      const limpiarBusqueda = () => { $('d-buscar').value = ''; marcado = 0; pintarRes(); };
       const anadir = (p) => {
+        if (variantesDe(p).length || gruposDe(p).length) { limpiarBusqueda(); elegir(p); return; }
         d.lineas.push(lineaDeProducto(p, compra)); cambiado.valor = true; pintarLineas();
-        $('d-buscar').value = ''; marcado = 0; pintarRes(); $('d-buscar').focus();
+        limpiarBusqueda(); $('d-buscar').focus();
+      };
+      // Products with sizes or finishes: pick them before the line is added.
+      const elegir = (p) => {
+        const caja = $('d-elegir'), vs = variantesDe(p), gs = gruposDe(p);
+        const valorVar = (v) => (compra ? costeDe(p, v) : precioDe(p, v));
+        const valorExtra = (x) => (compra ? costeDe(p, x) : precioOpcion(p, x));
+        const extraTxt = (x) => (valorExtra(x) ? ' (+' + euros(valorExtra(x)) + ')' : '');
+        const versiones = [...new Set(vs.map((v) => v.version || ''))];
+        const opcionesVar = versiones.map((ver) => {
+          const ops = vs.filter((v) => (v.version || '') === ver).map((v) => '<option value="' + esc(v.id) + '">' + esc(v.medida) + ' — ' + (valorVar(v) ? euros(valorVar(v)) : 'sin ' + (compra ? 'coste' : 'precio')) + '</option>').join('');
+          return versiones.length > 1 ? '<optgroup label="' + esc(ver || 'Normal') + '">' + ops + '</optgroup>' : ops;
+        }).join('');
+        caja.innerHTML = '<div class="g-eleg-cab"><span class="g-mini-foto">' + (p.foto ? '<img src="' + esc(p.foto) + '" alt="">' : '') + '</span><b>' + esc(p.nombre) + '</b><button type="button" class="p-x" id="e-cerrar" aria-label="Cancelar">×</button></div>' +
+          '<div class="g-eleg-campos">' +
+            (vs.length ? '<label>Medida<select id="e-var">' + opcionesVar + '</select></label>' : '') +
+            gs.map((g, i) => '<label>' + esc(g.nombre) + '<select data-eg="' + i + '">' + (g.obligatoria ? '<option value="">Elige…</option>' : '<option value="">Sin ' + esc(g.nombre.toLowerCase()) + '</option>') +
+              g.valores.map((x, xi) => '<option value="' + xi + '">' + esc(x.nombre) + esc(extraTxt(x)) + '</option>').join('') + '</select></label>').join('') +
+            '<label>Cantidad<input id="e-cant" inputmode="decimal" value="1"></label>' +
+          '</div><div class="g-eleg-pie"><span id="e-precio"></span><button type="button" class="btn" id="e-cancelar">Cancelar</button><button type="button" class="btn primario" id="e-anadir">Añadir al documento</button></div>';
+        caja.hidden = false;
+        const leerEleccion = () => {
+          const v = vs.length ? vs.find((x) => x.id === $('e-var').value) : null;
+          const elegidos = gs.map((g, i) => { const s = caja.querySelector('[data-eg="' + i + '"]').value; return s === '' ? null : [g, g.valores[Number(s)]]; });
+          return { v, elegidos };
+        };
+        const precio = () => {
+          const { v, elegidos } = leerEleccion();
+          const l = lineaDeProducto(p, compra, v, elegidos.filter(Boolean), num($('e-cant').value) || 1);
+          $('e-precio').innerHTML = (compra ? 'Coste' : 'Precio') + ' por unidad: <b>' + euros(l.precio) + '</b> sin IVA';
+        };
+        const cerrarEleccion = () => { caja.hidden = true; caja.innerHTML = ''; $('d-buscar').focus(); };
+        const confirmar = () => {
+          const { v, elegidos } = leerEleccion();
+          if (vs.length && !v) { aviso('Elige la medida.'); $('e-var').focus(); return; }
+          const falta = gs.findIndex((g, i) => g.obligatoria && !elegidos[i]);
+          if (falta >= 0) { aviso('Elige ' + gs[falta].nombre.toLowerCase() + '.'); caja.querySelector('[data-eg="' + falta + '"]').focus(); return; }
+          d.lineas.push(lineaDeProducto(p, compra, v, elegidos.filter(Boolean), num($('e-cant').value) || 1)); cambiado.valor = true; pintarLineas();
+          cerrarEleccion();
+        };
+        caja.oninput = precio; caja.onchange = precio;
+        caja.onkeydown = (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); confirmar(); }
+          else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cerrarEleccion(); }
+        };
+        $('e-anadir').onclick = confirmar; $('e-cancelar').onclick = cerrarEleccion; $('e-cerrar').onclick = cerrarEleccion;
+        precio();
+        const primero = caja.querySelector('select'); if (primero) primero.focus();
       };
       $('d-buscar').addEventListener('input', () => { marcado = 0; pintarRes(); });
       $('d-buscar').addEventListener('keydown', (e) => {
@@ -480,6 +987,19 @@ export function crearGestion(x) {
       $('d-bultos').value = decimal(l.bultos); $('d-peso').value = decimal(l.pesoBruto); $('d-volumen').value = decimal(l.volumen);
     };
     if ($('d-pagado')) $('d-pagado').addEventListener('input', pintarTotales);
+    // Commercial discount: goes into «Dto. 1» of every line with a price (each line can still be changed by hand afterwards).
+    if ($('d-dtocom-aplicar')) {
+      const aplicarDto = () => {
+        const x = num($('d-dtocom').value);
+        if (x < 0 || x >= 100) { aviso('El descuento tiene que estar entre 0 y 99 %.'); return; }
+        if (!d.lineas.length) { aviso('Añade antes los productos.'); return; }
+        d.lineas.forEach((l) => { if (Number(l.precio)) l.dto1 = x; });
+        cambiado.valor = true; pintarLineas();
+        aviso(x ? 'Descuento del ' + fPct(x) + ' puesto en todas las líneas con precio.' : 'Descuento quitado de todas las líneas.');
+      };
+      $('d-dtocom-aplicar').onclick = aplicarDto;
+      $('d-dtocom').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); aplicarDto(); } });
+    }
     form.addEventListener('input', () => { cambiado.valor = true; });
 
     function leer() {
@@ -490,7 +1010,7 @@ export function crearGestion(x) {
           ? { nombre: v('d-env-nombre'), direccion: v('d-env-dir'), localidad: v('d-env-loc'), pais: v('d-env-pais'), contacto: v('d-env-contacto'), transportista: v('d-env-trans'), seguimiento: v('d-env-seg') } : {},
         formaPago: v('d-forma'), notas: $('d-notas').value.trim(), condiciones: lineasDe($('d-cond').value),
         logistica: { bultos: num(v('d-bultos')) || '', pesoBruto: num(v('d-peso')) || '', pesoNeto: num(v('d-pesoneto')) || '', volumen: num(v('d-volumen')) || '' },
-        lineas: d.lineas.map((l) => ({ productoId: l.productoId || '', ref: String(l.ref || '').trim(), descripcion: String(l.descripcion || '').trim(), detalle: String(l.detalle || '').trim(),
+        lineas: d.lineas.map((l) => ({ productoId: l.productoId || '', varianteId: l.varianteId || '', coste: Number(l.coste) || 0, precioCatalogo: l.precioCatalogo ?? '', ref: String(l.ref || '').trim(), descripcion: String(l.descripcion || '').trim(), detalle: String(l.detalle || '').trim(),
           cantidad: Number(l.cantidad) || 0, precio: Number(l.precio) || 0, dto1: Number(l.dto1) || 0, dto2: Number(l.dto2) || 0, iva: Number(l.iva ?? 21) }))
       });
       if (tipo === 'presupuesto') r.validoHasta = v('d-valido');
@@ -572,6 +1092,9 @@ export function crearGestion(x) {
     if (b.dataset.gsub) { S.gestion.sub = b.dataset.gsub; S.gestion.buscar = ''; render(); return true; }
     if (b.dataset.gtipo) { S.gestion.tipo = b.dataset.gtipo; render(); return true; }
     if (b.dataset.gcat) { S.gestion.categoria = b.dataset.gcat; render(); return true; }
+    if (b.dataset.escCat) { formEscCategoria(b.dataset.escCat); return true; }
+    if (b.dataset.escProd) { const p = producto(b.dataset.escProd); if (p) formEscProducto(p); return true; }
+    if (b.dataset.gAzorin) { cargarAzorin(); return true; }
     return false;
   }
   function alEscribir(e) {
@@ -609,6 +1132,35 @@ export const ESTILOS_GESTION = `
   .g-foto-btns { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
   .g-foto-btns label.btn { cursor: pointer; }
   .hoja.hoja-doc { width: min(1180px, 100%); }
+  .hoja.hoja-prod { width: min(980px, 100%); }
+  .p-ayuda { margin: 0 0 6px; font-size: 13px; color: var(--muted); }
+  .p-gen { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; background: var(--sunk); border-radius: 10px; padding: 10px; margin-bottom: 8px; }
+  .p-gen label { display: grid; gap: 4px; font-size: 12px; font-weight: 700; color: var(--muted); flex: 1 1 150px; }
+  .p-gen input, .p-var input, .p-val input, .p-grupo-cab input, .p-grupo-cab select, .g-eleg-campos select, .g-eleg-campos input { width: 100%; min-width: 0; border: 1px solid var(--line); background: var(--bg); border-radius: 8px; padding: 6px 8px; font: inherit; font-size: 13.5px; color: var(--ink); }
+  .p-var { display: grid; grid-template-columns: 92px minmax(0, 1.3fr) minmax(0, 1fr) 72px 72px 72px 78px 60px 60px 26px; gap: 5px; align-items: center; margin-bottom: 5px; }
+  .p-var-cab, .p-val-cab { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: 2px; }
+  .p-var [data-k="coste"], .p-var [data-k="precio"], .p-var [data-k="peso"], .p-var [data-k="volumen"], .p-val [data-xk="coste"], .p-val [data-xk="precio"] { text-align: right; font-variant-numeric: tabular-nums; }
+  .p-civa { font-size: 12.5px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+  .p-x { border: 1px solid var(--line); background: transparent; border-radius: 6px; width: 26px; height: 28px; color: var(--muted); padding: 0; }
+  .p-x:hover { color: var(--bad); border-color: var(--bad); }
+  .p-acc { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 6px; }
+  .p-tipicos { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 13px; color: var(--muted); }
+  .p-grupo { border: 1px solid var(--line); border-radius: 12px; padding: 10px; margin-bottom: 8px; }
+  .p-grupo-cab { display: grid; grid-template-columns: minmax(0, 1fr) 190px auto; gap: 6px; align-items: center; margin-bottom: 8px; }
+  .p-val { display: grid; grid-template-columns: minmax(0, 1fr) 84px 84px 84px 26px; gap: 5px; align-items: center; margin-bottom: 5px; max-width: 640px; }
+  .g-elegir { border: 1.5px solid var(--accent); border-radius: 12px; padding: 10px 12px; margin: 0 0 10px; background: var(--accent-soft); }
+  .g-eleg-cab { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+  .g-eleg-cab .p-x { margin-left: auto; }
+  .g-eleg-campos { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+  .g-eleg-campos label { display: grid; gap: 4px; font-size: 12px; font-weight: 700; color: var(--muted); }
+  .g-eleg-pie { display: flex; gap: 8px; align-items: center; justify-content: flex-end; margin-top: 10px; font-size: 14px; }
+  .g-eleg-pie #e-precio { margin-right: auto; }
+  @media (max-width: 760px) {
+    .p-var { grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 8px; border: 1px solid var(--line); border-radius: 10px; }
+    .p-var-cab { display: none; }
+    .p-var [data-k="medida"], .p-var [data-k="version"] { grid-column: span 2; }
+    .p-grupo-cab { grid-template-columns: 1fr; }
+  }
   .g-tres { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .g-busca { position: relative; display: flex; gap: 8px; margin: 4px 0 10px; }
   .g-busca input { flex: 1; min-width: 0; border: 1.5px solid var(--accent); background: var(--bg); border-radius: 10px; padding: 10px 12px; font-size: 15px; }
@@ -639,6 +1191,33 @@ export const ESTILOS_GESTION = `
   .g-totales span { color: var(--muted); }
   .g-totales .g-total { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 8px; font-size: 17px; }
   .g-totales .g-total span, .g-totales .g-total b { color: var(--ink); font-weight: 700; }
+  .g-totales .g-margen { display: grid; grid-template-columns: 1fr auto; margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: var(--ok-soft); }
+  .g-totales .g-margen span { font-size: 12px; }
+  .g-totales .g-margen b { color: var(--ink); font-size: 14px; }
+  .g-totales .g-margen small { grid-column: 1 / -1; color: var(--muted); font-size: 11.5px; line-height: 1.35; }
+  .g-totales .g-margen.justo { background: var(--warn-soft); }
+  .g-totales .g-margen.malo { background: var(--bad-soft); }
+  .g-linea input.g-cambiado { border-color: var(--warn); background: var(--warn-soft); }
+  .g-dtocom { display: flex; gap: 6px; }
+  .e-h2 { font-family: var(--f-display, inherit); font-size: 17px; margin: 22px 0 10px; }
+  .e-cats { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+  .e-prod { margin-bottom: 12px; display: block; }
+  .e-prod-cab { display: flex; gap: 10px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; margin-bottom: 8px; }
+  .e-prod-cab .der { display: flex; gap: 6px; }
+  .e-tabla td, .e-tabla th { white-space: nowrap; }
+  .e-tabla .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .e-bien { color: var(--ok); font-weight: 700; }
+  .e-justo { color: var(--warn); font-weight: 700; }
+  .e-malo { color: var(--bad, #C0392B); font-weight: 700; }
+  .e-nd { color: var(--muted); }
+  .e-lin { display: grid; grid-template-columns: minmax(0, 1fr) 190px 90px 26px; gap: 6px; align-items: center; margin-bottom: 6px; }
+  .e-lin input, .e-lin select { width: 100%; min-width: 0; border: 1px solid var(--line); background: var(--bg); border-radius: 8px; padding: 6px 8px; font: inherit; font-size: 13.5px; color: var(--ink); }
+  .e-lin [data-lk="valor"] { text-align: right; }
+  .e-lin-cab { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: 2px; }
+  .e-ejemplo { background: var(--sunk); border-radius: 12px; padding: 10px 12px; font-size: 13.5px; }
+  .e-ejemplo p { margin: 4px 0 8px; }
+  @media (max-width: 640px) { .e-lin { grid-template-columns: 1fr 1fr; } .e-lin [data-lk="concepto"] { grid-column: 1 / -1; } }
+  .g-dtocom input { flex: 1; min-width: 0; border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 8px 10px; font: inherit; }
   @media (max-width: 900px) {
     .g-tres { grid-template-columns: 1fr 1fr; }
     .g-cierre { grid-template-columns: minmax(0, 1fr); }
