@@ -136,7 +136,8 @@ export function crearGestion(x) {
     const acciones = {
       documentos: '<button class="btn primario" type="button" data-nuevo="presupuesto">+ Presupuesto</button><button class="btn" type="button" data-nuevo="pedido">+ Pedido de venta</button><button class="btn" type="button" data-nuevo="pedidoCompra">+ Pedido de compra</button><button class="btn" type="button" data-nuevo="albaran">+ Albarán</button>',
       productos: '<button class="btn primario" type="button" data-nuevo="producto">+ Producto</button>' + (S.escribir ? '<button class="btn" type="button" data-g-azorin="1">Cargar o actualizar la tarifa de Azorín</button>' : '') +
-        (S.escribir && S.listo.productos && copiasSobrantes().sobran.length ? '<button class="btn" type="button" data-g-repetidos="1">Quitar repetidos (' + copiasSobrantes().sobran.length + ')</button>' : ''),
+        (S.escribir && S.listo.productos && copiasSobrantes().sobran.length ? '<button class="btn" type="button" data-g-repetidos="1">Quitar repetidos (' + copiasSobrantes().sobran.length + ')</button>' : '') +
+        (S.escribir && S.productos.length ? '<button class="btn peligro" type="button" data-g-reiniciar="1">Borrar todo y volver a cargar la tarifa</button>' : ''),
       escandallos: '',
       clientes: '<button class="btn primario" type="button" data-nuevo="cliente">+ Cliente</button>',
       empresa: ''
@@ -729,6 +730,45 @@ export function crearGestion(x) {
     }, 'Tarifa de Azorín: ' + resumen, 'cargó la tarifa de Azorín: ' + resumen); } finally { cargandoAzorin = false; }
   }
 
+  // Wipes the whole catalogue and loads the Azorín 26/27 tariff again, clean: every model with all its sizes and prices.
+  // A model keeps the id (and size ids) it had, so presupuestos, pedidos and albaranes stay linked, and keeps its photo.
+  let reiniciando = false;
+  async function reiniciarAzorin() {
+    if (!S.escribir) return;
+    if (!S.listo.productos || !S.listo.documentos) { aviso('Espera a que terminen de cargar los productos y los documentos.'); return; }
+    if (reiniciando || cargandoAzorin) { aviso('Ya se está cargando la tarifa.'); return; }
+    const n = S.productos.length;
+    if (!confirm('Se van a BORRAR los ' + n + ' productos del panel y se cargan de nuevo los ' + TARIFA_AZORIN.length + ' modelos de la tarifa de Azorín 26/27, con todas sus medidas, costes, PVP mínimos y acabados.\n\n' +
+      'Se pierden los precios puestos a mano, pesos y volúmenes. Las fotos se conservan. Los presupuestos, pedidos y albaranes ya hechos no cambian.\n\n¿Seguir?')) return;
+    if (!confirm('No se puede deshacer. ¿Borrar los ' + n + ' productos y volver a cargar la tarifa?')) return;
+    const usos = (p) => S.documentos.filter((d) => (d.lineas || []).some((l) => l.productoId === p.id)).length;
+    const antiguos = S.productos.slice();
+    const ahora = new Date().toISOString();
+    const tomados = new Set();
+    const nuevos = TARIFA_AZORIN.map((t) => {
+      const mismos = antiguos.filter((p) => sinTildes(p.ref) === sinTildes(t.ref) || sinTildes(p.nombre) === sinTildes(t.nombre)).sort((a, b) => usos(b) - usos(a));
+      const viejo = mismos.find((p) => !tomados.has(p.id)); if (viejo) tomados.add(viejo.id);
+      const viejas = mismos.flatMap(variantesDe), usadas = new Set();
+      const vs = (t.variantes || []).map((v) => {
+        const o = viejas.find((x) => !usadas.has(x.id) && claveMedida(x) === claveMedida(v)) || viejas.find((x) => !usadas.has(x.id) && !x.version && claveMedida(x) === claveMedida({ medida: v.medida }));
+        if (o) usadas.add(o.id);
+        return Object.assign({ id: (o && o.id) || nuevoId(), ref: '', precio: 0, peso: 0, volumen: 0 }, v);
+      }).sort((x, y) => motorUltimo(x) - motorUltimo(y));
+      const foto = (mismos.find((p) => p.foto) || {}).foto || '';
+      const prod = Object.assign({ iva: 21, activo: true, bultos: 1, proveedor: 'Azorín Descanso', costeConIva: true, precio: 0, coste: 0, pvpMin: 0, peso: 0, volumen: 0, medidas: '' }, t, {
+        foto, variantes: vs, opciones: (t.opciones || []).map((g) => Object.assign({ id: nuevoId() }, g, { valores: g.valores.map((x) => Object.assign({ id: nuevoId(), precio: 0 }, x)) })),
+        medidas: vs.length ? [...new Set(vs.map((v) => v.medida))].join(', ').slice(0, 300) : t.medidas || '', creado: ahora, actualizado: ahora, creadoPor: S.yo });
+      return { id: (viejo && viejo.id) || nuevoId(), prod };
+    });
+    reiniciando = true;
+    try {
+      await escribir(async () => {
+        for (let i = 0; i < antiguos.length; i += 20) await Promise.all(antiguos.slice(i, i + 20).map((p) => col('productos').doc(p.id).delete()));
+        for (let i = 0; i < nuevos.length; i += 20) await Promise.all(nuevos.slice(i, i + 20).map(({ id, prod }) => col('productos').doc(id).set(prod)));
+      }, 'Tarifa de Azorín cargada de nuevo: ' + nuevos.length + ' modelos con todas sus medidas', 'borró los ' + n + ' productos y volvió a cargar la tarifa de Azorín');
+    } finally { reiniciando = false; }
+  }
+
   /* ---------- Cliente ---------- */
   const CAMPOS_CLIENTE = [
     { n: 'nombre', l: 'Nombre o empresa', req: true, ancho: true, max: 160 },
@@ -1192,6 +1232,7 @@ export function crearGestion(x) {
     if (b.dataset.escProd) { const p = producto(b.dataset.escProd); if (p) formEscProducto(p); return true; }
     if (b.dataset.gAzorin) { cargarAzorin(); return true; }
     if (b.dataset.gRepetidos) { quitarRepetidos(); return true; }
+    if (b.dataset.gReiniciar) { reiniciarAzorin(); return true; }
     return false;
   }
   function alEscribir(e) {
