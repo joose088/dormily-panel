@@ -33,7 +33,7 @@ const estadosDe = (d) => (esCompra(d) ? ESTADOS_COMPRA : ESTADOS_DOC[d.tipo] || 
 const nombreTipo = (d) => (d.tipo === 'pedido' ? (esCompra(d) ? 'Pedido de compra' : 'Pedido de venta') : tituloDe(d));
 const CLASE_ESTADO = { aceptado: 'ok', servido: 'ok', entregado: 'ok', recibido: 'ok', rechazado: 'bad', cancelado: 'bad', enviado: 'azul', abierto: 'azul', pendiente: 'warn', borrador: '', emitida: 'azul', cobrada: 'ok', anulada: 'bad' };
 const CONDICIONES_BASE = {
-  presupuesto: 'Portes incluidos a península.\nPlazo de entrega: 7 a 10 días laborables desde la aceptación.\n3 años de garantía.',
+  presupuesto: 'Plazo de entrega: 7 a 10 días laborables desde la aceptación.\n3 años de garantía.',
   pedido: 'Plazo de entrega: 7 a 10 días laborables.\n3 años de garantía.',
   albaran: '',
   factura: ''
@@ -41,6 +41,7 @@ const CONDICIONES_BASE = {
 const sinTildes = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const decimal = (v) => (v === '' || v == null ? '' : String(v).replace('.', ','));
 const fPct = (n) => (Math.round(n * 10) / 10).toString().replace('.', ',') + ' %';
+const sinPortesIncluidos = (xs) => xs.filter((x) => !/(portes|env[ií]o)s? incluid/i.test(x));
 const lineasDe = (txt) => String(txt || '').split('\n').map((x) => x.trim()).filter(Boolean);
 // A product has either one price (precio/coste/medidas) or a list of sizes (variantes), each with its own price.
 const variantesDe = (p) => (p && Array.isArray(p.variantes) ? p.variantes.filter((v) => v.medida || v.version) : []);
@@ -760,7 +761,8 @@ export function crearGestion(x) {
       cliente: { pais: 'España' }, envio: {}, lineas: [], logistica: {},
       formaPago: compra ? '' : g.formaPago || '', notas: '',
       // A purchase order carries no customer conditions; whatever we ask the supplier goes in Notas.
-      condiciones: compra ? [] : lineasDe({ presupuesto: g.condPresupuesto ?? CONDICIONES_BASE.presupuesto, pedido: g.condPedido ?? CONDICIONES_BASE.pedido, albaran: g.condAlbaran ?? CONDICIONES_BASE.albaran, factura: CONDICIONES_BASE.factura }[tipo])
+      // «Portes incluidos» no longer applies (shipping is charged apart), even if it was saved in Datos de la empresa.
+      condiciones: compra ? [] : sinPortesIncluidos(lineasDe({ presupuesto: g.condPresupuesto ?? CONDICIONES_BASE.presupuesto, pedido: g.condPedido ?? CONDICIONES_BASE.pedido, albaran: g.condAlbaran ?? CONDICIONES_BASE.albaran, factura: CONDICIONES_BASE.factura }[tipo]))
     }, compra ? { sentido: 'compra' } : {}, modalidad ? { modalidad } : {}, base || {}, modalidad ? { modalidad } : {});
     if (tipo === 'presupuesto' && !d.validoHasta) d.validoHasta = sumaDias(fecha, Number(g.validez) || 15);
     return d;
