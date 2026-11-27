@@ -255,5 +255,6 @@ export const ESTILOS_VENTAS = `
   .v-punto { margin-right: 6px; vertical-align: -1px; }
   .v-s1 { --v-color: #2a78d6; } .v-s2 { --v-color: #eb6834; } .v-s3 { --v-color: #1baf7a; }
   .v-serie path { fill: var(--v-color); }
+  :root[data-theme="dark"] .v-s1 { --v-color: #3987e5; } :root[data-theme="dark"] .v-s2 { --v-color: #d95926; } :root[data-theme="dark"] .v-s3 { --v-color: #199e70; }
   @media (max-width: 800px) { .v-graficas { grid-template-columns: 1fr; } .v-sep { display: none; } }
 `;
