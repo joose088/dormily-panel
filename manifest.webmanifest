@@ -4,8 +4,8 @@
   "description": "Tareas, calendario y notas del equipo Landez.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0E0E2C",
-  "theme_color": "#0E0E2C",
+  "background_color": "#FFFFFF",
+  "theme_color": "#FFFFFF",
   "lang": "es",
   "icons": [
     { "src": "icono.svg", "sizes": "any", "type": "image/svg+xml" },

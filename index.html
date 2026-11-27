@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0E0E2C">
+<meta name="theme-color" content="#FFFFFF">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icono.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icono-180.png">
@@ -12,38 +12,18 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap">
 <style>
-  /* Layout: navy brand band with the team's numbers, then one working view at a time. */
+  /* Layout: white band with the team's numbers, then one working view at a time. White background and black text everywhere (no dark mode). */
   :root {
-    --bg: #FBF8F3; --surface: #FFFFFF; --sunk: #F3EEE6; --ink: #0E0E2C; --muted: #565670; --line: rgba(14,14,44,.12);
-    --band: #0E0E2C; --band-ink: #FFF6EC; --band-muted: rgba(255,246,236,.72);
+    color-scheme: light;
+    --bg: #FFFFFF; --surface: #FFFFFF; --sunk: #F4F4F6; --ink: #000000; --muted: #4B4B57; --line: rgba(0,0,0,.12);
+    --band: #FFFFFF; --band-ink: #000000; --band-muted: rgba(0,0,0,.62);
     --accent: #2F3BFF; --accent-ink: #FFFFFF; --accent-soft: #E7E9FF;
     --rosa: #C2185B; --rosa-soft: #FFE1EE; --rosa-band: #FF7AB6;
     --ok: #1C7C52; --ok-soft: #DDF3E8; --warn: #9A6100; --warn-soft: #FFF0D1; --bad: #C22A47; --bad-soft: #FFE0E5;
-    --p-jc: #2F3BFF; --p-alejandro: #C2185B; --p-hugo: #1C7C52; --p-todos: #0E0E2C;
+    --p-jc: #2F3BFF; --p-alejandro: #C2185B; --p-hugo: #1C7C52; --p-todos: #000000;
     --f-display: 'Unbounded', 'Arial Black', sans-serif; --f-body: 'DM Sans', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
-    --r: 12px; --sombra: 0 1px 2px rgba(14,14,44,.06), 0 6px 20px rgba(14,14,44,.06);
+    --r: 12px; --sombra: 0 0 0 1px rgba(0,0,0,.09), 0 2px 8px rgba(0,0,0,.05);
   }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --bg: #0B0B1E; --surface: #15152D; --sunk: #1C1C38; --ink: #FFF6EC; --muted: #B0B0CC; --line: rgba(255,246,236,.13);
-      --band: #12122A; --band-ink: #FFF6EC; --band-muted: rgba(255,246,236,.7);
-      --accent: #8A91FF; --accent-ink: #0B0B1E; --accent-soft: rgba(138,145,255,.16);
-      --rosa: #FF8FC0; --rosa-soft: rgba(255,122,182,.16); --rosa-band: #FF7AB6;
-      --ok: #55D199; --ok-soft: rgba(85,209,153,.14); --warn: #F4BC5A; --warn-soft: rgba(244,188,90,.14); --bad: #FF7A92; --bad-soft: rgba(255,122,146,.14);
-      --p-jc: #8A91FF; --p-alejandro: #FF8FC0; --p-hugo: #55D199; --p-todos: #FFF6EC;
-      --sombra: 0 1px 2px rgba(0,0,0,.3); color-scheme: dark;
-    }
-  }
-  :root[data-theme="dark"] {
-    --bg: #0B0B1E; --surface: #15152D; --sunk: #1C1C38; --ink: #FFF6EC; --muted: #B0B0CC; --line: rgba(255,246,236,.13);
-    --band: #12122A; --band-ink: #FFF6EC; --band-muted: rgba(255,246,236,.7);
-    --accent: #8A91FF; --accent-ink: #0B0B1E; --accent-soft: rgba(138,145,255,.16);
-    --rosa: #FF8FC0; --rosa-soft: rgba(255,122,182,.16); --rosa-band: #FF7AB6;
-    --ok: #55D199; --ok-soft: rgba(85,209,153,.14); --warn: #F4BC5A; --warn-soft: rgba(244,188,90,.14); --bad: #FF7A92; --bad-soft: rgba(255,122,146,.14);
-    --p-jc: #8A91FF; --p-alejandro: #FF8FC0; --p-hugo: #55D199; --p-todos: #FFF6EC;
-    --sombra: 0 1px 2px rgba(0,0,0,.3); color-scheme: dark;
-  }
-
   * { box-sizing: border-box; }
   body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.45; }
   button, input, select, textarea { font: inherit; color: inherit; }
@@ -52,7 +32,7 @@
   .envoltorio { max-width: 1180px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 
   /* Band */
-  .banda { background: var(--band); color: var(--band-ink); }
+  .banda { background: var(--band); color: var(--band-ink); border-bottom: 1px solid var(--line); }
   .banda .envoltorio { padding-block: 22px 18px; display: grid; gap: 18px; }
   .banda__top { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
   .marca { display: inline-flex; align-items: baseline; gap: 10px; font-family: var(--f-display); font-weight: 700; font-size: 15px; letter-spacing: -.02em; margin: 0; }
@@ -64,8 +44,8 @@
   .estado-con.ok i { background: #55D199; }
   .estado-con.mal i { background: #FF7A92; }
   .cifras { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-  .cifra { background: rgba(255,246,236,.07); border: 1px solid rgba(255,246,236,.12); border-radius: var(--r); padding: 12px 14px; min-width: 0; text-align: left; color: inherit; }
-  button.cifra:hover { background: rgba(255,246,236,.12); }
+  .cifra { background: var(--sunk); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; min-width: 0; text-align: left; color: inherit; }
+  button.cifra:hover { background: #EAEAEE; }
   .cifra b { display: block; font-family: var(--f-display); font-size: 24px; line-height: 1.1; font-variant-numeric: tabular-nums; }
   .cifra span { font-size: 12.5px; color: var(--band-muted); }
   .cifra.alerta b { color: #FF8FA3; }
@@ -205,7 +185,7 @@
   body { margin: 0; }
   [hidden] { display: none !important; }
   .usuario { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--band-muted); }
-  .usuario button { border: 1px solid rgba(255,246,236,.25); background: transparent; color: var(--band-ink); border-radius: 999px; padding: 4px 10px; font-size: 12.5px; font-weight: 700; }
+  .usuario button { border: 1px solid rgba(0,0,0,.25); background: transparent; color: var(--band-ink); border-radius: 999px; padding: 4px 10px; font-size: 12.5px; font-weight: 700; }
   .entrada { min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; background: var(--band); color: var(--band-ink); padding: 24px max(16px, env(safe-area-inset-left, 0px)); }
   .entrada__caja { width: min(380px, 100%); text-align: center; display: grid; gap: 18px; }
   .entrada h1 { display: flex; justify-content: center; align-items: baseline; gap: 12px; font-family: var(--f-display); font-size: 20px; margin: 0; letter-spacing: -.02em; }
@@ -214,18 +194,18 @@
   .entrada p { margin: 0; color: var(--band-muted); }
   .pregunta { font-family: var(--f-display); font-size: 17px; color: var(--band-ink) !important; }
   .nombres { display: grid; gap: 10px; }
-  .nombre { display: flex; align-items: center; gap: 12px; background: rgba(255,246,236,.08); border: 1px solid rgba(255,246,236,.18); color: var(--band-ink); border-radius: 14px; padding: 12px 16px; font-size: 16px; font-weight: 700; text-align: left; }
-  .nombre:hover { background: rgba(255,246,236,.14); }
+  .nombre { display: flex; align-items: center; gap: 12px; background: var(--sunk); border: 1px solid var(--line); color: var(--band-ink); border-radius: 14px; padding: 12px 16px; font-size: 16px; font-weight: 700; text-align: left; }
+  .nombre:hover { background: #EAEAEE; }
   .nombre .ini { width: 34px; height: 34px; font-size: 12px; color: #fff; }
   .form-codigo { display: grid; gap: 10px; text-align: left; }
   .form-codigo label { font-size: 13px; font-weight: 700; color: var(--band-muted); }
-  .form-codigo input { width: 100%; border: 1px solid rgba(255,246,236,.25); background: rgba(255,246,236,.06); color: var(--band-ink); border-radius: 12px; padding: 12px 14px; font-size: 18px; letter-spacing: .2em; }
-  .btn-entrar { background: var(--rosa-band); color: #0E0E2C; border: 0; border-radius: 999px; padding: 12px 20px; font-weight: 700; font-size: 15px; }
+  .form-codigo input { width: 100%; border: 1px solid rgba(0,0,0,.25); background: #FFFFFF; color: var(--band-ink); border-radius: 12px; padding: 12px 14px; font-size: 18px; letter-spacing: .2em; }
+  .btn-entrar { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 999px; padding: 12px 20px; font-weight: 700; font-size: 15px; }
   .btn-entrar:disabled { opacity: .7; }
   .enlace { background: none; border: 0; color: var(--band-muted); text-decoration: underline; font-size: 13.5px; padding: 4px; justify-self: center; }
   .btn-google { display: inline-flex; align-items: center; justify-content: center; gap: 10px; background: #fff; color: #1f1f1f; border: 0; border-radius: 999px; padding: 12px 20px; font-weight: 700; font-size: 15px; }
   .btn-google svg { width: 18px; height: 18px; }
-  .entrada .error { background: rgba(255,122,146,.15); color: #FFC2CD; border-radius: 12px; padding: 10px 12px; font-size: 14px; }
+  .entrada .error { background: var(--bad-soft); color: var(--bad); border-radius: 12px; padding: 10px 12px; font-size: 14px; }
 </style>
 
 <style>
@@ -366,7 +346,7 @@
 <body>
 <div class="entrada" id="entrada">
   <div class="entrada__caja">
-    <h1><img src="logo-landez.svg" alt="Landez" width="199" height="44"><span>equipo</span></h1>
+    <h1><img src="logo-documento.svg" alt="Landez" width="199" height="44"><span>equipo</span></h1>
     <p class="pregunta" id="entrada-pregunta">¿Quién eres?</p>
     <div class="nombres" id="nombres">
       <button type="button" class="nombre" data-quien="jc"><span class="ini" style="background:#2F3BFF">JC</span>José Carlos</button>
@@ -389,7 +369,7 @@
 <header class="banda">
   <div class="envoltorio">
     <div class="banda__top">
-      <h1 class="marca"><img src="logo-landez.svg" alt="Landez" width="118" height="26"><span>equipo</span></h1>
+      <h1 class="marca"><img src="logo-documento.svg" alt="Landez" width="118" height="26"><span>equipo</span></h1>
       <span class="hoy" id="hoy"></span>
       <span class="usuario" id="usuario" hidden><span id="usuario-nombre"></span><button type="button" id="salir">Salir</button></span>
       <span class="estado-con" id="conexion"><i></i><span>Conectando…</span></span>
