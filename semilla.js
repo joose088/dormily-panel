@@ -842,6 +842,13 @@ export const SEMILLA = {
       "notas": "Hablamos el 2/11/2026. El 3/11 Conrado respondió que no: fabrican series grandes personalizadas y no pueden hacer pocas unidades. El 4/11 nos recomendó fabricantes pequeños: Tressas Confort (enfrente de ECUS, barato, marca blanca), BioDescanso y Vickflex. Se ofrece para dudas sobre el mercado.",
       "actualizado": "2026-11-05T12:00:00.000Z"
     }
+  },
+  // Contactos para pedidos que nos pasó Gracia el 27/11/2026.
+  "proveedores@5": {
+    "p02": {
+      "contacto": "Teléfono: 968 790 909\nPedidos y recogidas: Yolanda Martínez (ext. 255) y Yolanda Puche (ext. 231). Están en ventanilla cuando vamos a recoger.\nGracia (marketing, fotos y muestrarios): marketing@azorindescanso.com\nPedidos por correo: ventas1@ … ventas7@azorindescanso.com\nIncidencias: atencion@azorindescanso.com",
+      "actualizado": "2026-11-27T12:00:00.000Z"
+    }
   }
 };
 
